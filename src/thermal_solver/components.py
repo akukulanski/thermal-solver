@@ -11,6 +11,8 @@ from .properties import (
     RadiationSurfaceProperties,
     HeatSourceProperties,
     RadiationInterfaceProperties,
+    ConductionProperties,
+    ConductionInterfaceProperties,
 )
 from .utils import (
     _get_func_name_,
@@ -25,6 +27,7 @@ __all__ = [
     'Component',
     'RadiationSurface',
     'HeatSource',
+    'ConductionComponent',
 ]
 
 
@@ -133,3 +136,41 @@ class HeatSource(Component):
 
     def calculate_neat_heat_power_out_W(self, t: float) -> float:
         return -self.properties.power_getter(t=t)
+
+
+class ConductionComponent(Component):
+
+    def __init__(self, properties: ConductionProperties):
+        super().__init__()
+        self.properties = properties
+        self.input_interfaces: list[tuple[ConductionComponent,
+                                          ConductionInterfaceProperties]] = []
+
+    def _source_in_interfaces(self, source: ConductionComponent) -> bool:
+        return self.get_source_interface(source) is not None
+
+    def get_source_interface(self, source: ConductionComponent) -> ConductionInterfaceProperties | None:
+        for src, props in self.input_interfaces:
+            if src is source:
+                return props
+        return None
+
+    def add_input_interface(self, source: ConductionComponent, properties: ConductionInterfaceProperties,
+                            add_symmetric_interface: bool = True):
+        """Add input interface"""
+        if self._source_in_interfaces(source):
+            raise ValueError(f'Source already added')
+        self.input_interfaces.append((source, properties))
+        if add_symmetric_interface:
+            symmetric_interface_properties = properties.get_symmetric_properties()
+            source.add_input_interface(
+                self, symmetric_interface_properties, add_symmetric_interface=False
+            )
+
+    def calculate_neat_heat_power_out_W(self, t: float) -> float:
+        this_node_temp_K = self.node.temperature
+        return sum([
+            (this_node_temp_K - source.node.temperature) *
+            iface.conductance_W_per_K
+            for source, iface in self.input_interfaces
+        ])

@@ -13,6 +13,10 @@ class Node:
     def __init__(self, properties: NodeProperties):
         self.properties = properties
         self.components: list[Component] = []
+        # FIXME: temeprature should be a function to allow pass the time
+        # as argument. Find a way to allow temperature set for nodes that
+        # change according to the ODE, and for infinite-mass nodes that
+        # remain independent and where temperature depends strictly on time.
         self.temperature: float = None
 
     def add_component(self, component: Component):

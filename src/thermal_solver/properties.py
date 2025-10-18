@@ -1,7 +1,12 @@
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, asdict
 from enum import Enum, auto
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from .components import Component
+    from .node import Node
 
 
 __all__ = [
@@ -9,7 +14,8 @@ __all__ = [
     'RadiationSurfaceProperties',
     'HeatSourceProperties',
     'RadiationInterfaceProperties',
-    'ContactSurfaceProperties',
+    'ConductionProperties',
+    'ConductionInterfaceProperties',
 ]
 
 
@@ -85,6 +91,23 @@ class RadiationInterfaceProperties:
 
 
 @dataclass(kw_only=True)
-class ContactSurfaceProperties:
-    area_m2: float  # [m2]
-    conductivity_W_per_m2_per_K: float  # [W / (m2 * K)]
+class ConductionProperties:
+    pass
+
+
+@dataclass(kw_only=True)
+class ConductionInterfaceProperties:
+    conductance_W_per_K: float
+
+    @classmethod
+    def from_area_and_conductivity(
+        cls,
+        area_m2: float,
+        conductivity_W_per_m2_per_K: float,
+    ) -> ConductionInterfaceProperties:
+        return ConductionInterfaceProperties(
+            conductance_W_per_K=area_m2 * conductivity_W_per_m2_per_K
+        )
+
+    def get_symmetric_properties(self) -> ConductionInterfaceProperties:
+        return ConductionInterfaceProperties(**asdict(self))

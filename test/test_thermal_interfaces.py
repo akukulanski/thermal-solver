@@ -5,20 +5,22 @@ from unittest import mock
 from thermal_solver.components import (
     HeatSource,
     RadiationSurface,
+    ConductionComponent,
 )
 from thermal_solver.constants import (
     STEFAN_BOLTZMANN_W_PER_M2_PER_K4,
     P_SOLAR_W_PER_M2,
 )
-from thermal_solver.lib import Sun
+from thermal_solver.lib import Sun, FixedTemperatureNode
 from thermal_solver.node import Node
 from thermal_solver.properties import (
     Spectrum,
     NodeProperties,
     RadiationSurfaceProperties,
-    ContactSurfaceProperties,
     HeatSourceProperties,
     RadiationInterfaceProperties,
+    ConductionProperties,
+    ConductionInterfaceProperties,
 )
 from thermal_solver.utils import calculate_effective_area_factor
 from thermal_solver.vectors import (
@@ -316,12 +318,6 @@ def test_sun():
     assert surface.calculate_heat_power_in_W(t=6 * 3600) == 0
 
 
-@pytest.mark.skip(reason='Test not implemented')
-def test_contact_surface_properties():
-    ContactSurfaceProperties
-    raise NotImplementedError()
-
-
 def test_heat_source_properties():
     properties = HeatSourceProperties(constant_power_W=0)
     assert properties.get_power_W(t=0) == 0
@@ -351,9 +347,75 @@ def test_heat_source():
         t=3) == -6  # heat source, power out is negative
 
 
+def test_conduction_properties():
+    properties = ConductionProperties()
+    # Nothing else your honor
+
+
+def test_conduction_interface_properties():
+    properties = ConductionInterfaceProperties(conductance_W_per_K=1)
+    assert properties.conductance_W_per_K == 1
+
+    properties = ConductionInterfaceProperties.from_area_and_conductivity(
+        area_m2=2, conductivity_W_per_m2_per_K=3
+    )
+    assert properties.conductance_W_per_K == 6
+
+
+def test_conduction_component():
+    component_1 = ConductionComponent(properties=ConductionProperties())
+    component_2 = ConductionComponent(properties=ConductionProperties())
+    component_3 = ConductionComponent(properties=ConductionProperties())
+    component_1.add_input_interface(
+        source=component_2,
+        properties=ConductionInterfaceProperties(conductance_W_per_K=10),
+    )
+    component_1.add_input_interface(
+        source=component_3,
+        properties=ConductionInterfaceProperties(conductance_W_per_K=20),
+        add_symmetric_interface=False,
+    )
+    assert component_1.get_source_interface(
+        component_2).conductance_W_per_K == 10
+    assert component_2.get_source_interface(
+        component_1).conductance_W_per_K == 10
+    assert component_1.get_source_interface(
+        component_3).conductance_W_per_K == 20
+    assert component_3.get_source_interface(component_1) is None  # not added
+
+    # Test node assignment and power calculation
+    node_1 = mock.MagicMock()
+    node_1.temperature = 300
+    node_1.components = [component_1]
+    component_1._assign_node(node_1)
+    node_2 = mock.MagicMock()
+    node_2.temperature = 400
+    node_2.components = [component_2, component_3]
+    component_2._assign_node(node_2)
+    component_3._assign_node(node_2)
+
+    assert component_1.calculate_neat_heat_power_out_W(t=0) == pytest.approx(
+        (300 - 400) * 10  # Out to component_2
+        + (300 - 400) * 20  # Out to component_3
+    )
+    assert component_2.calculate_neat_heat_power_out_W(t=0) == pytest.approx(
+        (400 - 300) * 10  # Out to component_1
+    )
+    assert component_3.calculate_neat_heat_power_out_W(
+        t=0) == 0  # No input interfaces
+
+
+def test_fixed_temperature_node():
+    node = FixedTemperatureNode(temperature_K=300)
+    assert node.temperature == 300
+    node.temperature = 350
+    assert node.temperature == 300
+
+
 def test_node():
     properties = NodeProperties(mass_kg=2, specific_heat_J_per_kg_per_K=300)
     node = Node(properties=properties)
+    other_node = FixedTemperatureNode(temperature_K=300)
 
     # Create node surfaces
     surface_1 = RadiationSurface(
@@ -389,10 +451,21 @@ def test_node():
     heat_source_1 = HeatSource(
         properties=HeatSourceProperties(constant_power_W=100))
 
+    # Create conduction components
+    component_1 = ConductionComponent(properties=ConductionProperties())
+    component_2 = ConductionComponent(properties=ConductionProperties())
+    component_1.add_input_interface(
+        source=component_2,
+        properties=ConductionInterfaceProperties(conductance_W_per_K=10),
+    )
+
     # Add surfaces and heat sources to node
     node.add_component(surface_1)
     node.add_component(surface_2)
     node.add_component(heat_source_1)
+    node.add_component(component_1)
+
+    other_node.add_component(component_2)
 
     # Set the node temperature
     node.temperature = 350
@@ -403,6 +476,7 @@ def test_node():
             surface_1.calculate_neat_heat_power_out_W(t=t)
             + surface_2.calculate_neat_heat_power_out_W(t=t)
             + heat_source_1.calculate_neat_heat_power_out_W(t=t)
+            + component_1.calculate_neat_heat_power_out_W(t=t)
         )
         assert surface_1.calculate_neat_heat_power_out_W(t=t) == pytest.approx(
             surface_1.calculate_heat_power_out_W(t=t)

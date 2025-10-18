@@ -121,6 +121,7 @@ class SimpleSystemTwoNodes(ThermalSystem):
         self.node_solar_panels.add_radiation_surface(solar_panel_yp)
 
     def __call__(self, t, y, *args) -> list[float]:
+        # FIXME: The node equation should be moved to the Node class.
         T1, T2 = y
         # First assign temperatures to nodes, so calculations of heat power out are correct.
         self.node_radiator.temperature = T1

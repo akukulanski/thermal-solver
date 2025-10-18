@@ -8,6 +8,7 @@ from .constants import (
 from .components import (
     RadiationSurface,
 )
+from .node import Node
 from .utils import (
     _get_func_name_,
     calculate_effective_area_factor,
@@ -15,6 +16,7 @@ from .utils import (
 from .properties import (
     Spectrum,
     RadiationSurfaceProperties,
+    NodeProperties,
 )
 
 
@@ -75,3 +77,41 @@ class Sun(RadiationSurface):
     def calculate_neat_heat_power_out_W(self, *args, **kwargs):
         raise NotImplementedError(
             f'Method {_get_func_name_()} not implemented for Sun!')
+
+
+# class InfinteMassNode(Node):
+
+#     def __init__(self, temperature_getter: callable):
+#         super().__init__(properties=NodeProperties(
+#             mass_kg=np.inf,
+#             specific_heat_J_per_kg_per_K=np.inf,
+#         ))
+#         self.temperature_getter = temperature_getter
+
+#     def get_temperature_K(self, t: float = 0) -> float:
+#         """Get temperature"""
+#         return self.temperature_getter(t=t)
+
+#     def temperature(self, t: float = 0):
+#         raise NotImplementedError()
+
+
+class FixedTemperatureNode(Node):
+
+    def __init__(self, temperature_K: float):
+        super().__init__(properties=NodeProperties(
+            mass_kg=np.inf,
+            specific_heat_J_per_kg_per_K=np.inf,
+        ))
+        self._temperature = temperature_K
+
+    @property
+    def temperature(self):
+        """Replace the attribute with a property that returns the fixed value
+        regardless of any use of obj.temperature = ..."""
+        return self._temperature
+
+    @temperature.setter
+    def temperature(self, value: float):
+        """The setter exists to avoid errors in Node.__init__(), but it's ignored"""
+        pass
