@@ -87,8 +87,8 @@ class RadiationSurfaceProperties:
 
 @dataclass(kw_only=True)
 class ContactSurfaceProperties:
-    area_m2: float # [m2]
-    conductivity_W_per_m2_per_K: float # [W / (m2 * K)]
+    area_m2: float  # [m2]
+    conductivity_W_per_m2_per_K: float  # [W / (m2 * K)]
     node_a: object
     node_b: object
 
@@ -108,7 +108,8 @@ class RadiationSurface:
 
     def __init__(self, properties: RadiationSurfaceProperties):
         self.properties = properties
-        self.input_interfaces: list[tuple[RadiationSurface, RadiationInterfaceProperties]] = []
+        self.input_interfaces: list[tuple[RadiationSurface,
+                                          RadiationInterfaceProperties]] = []
         self.node: Node = None
 
     def _assign_node(self, node: Node):
@@ -151,7 +152,8 @@ class RadiationSurface:
                 t=t,
                 area_exposed_m2=self.properties.area_m2 * iface_properties.view_factor,
                 orientation=self.properties.orientation,
-                absorptivity=self.properties.get_absorptivity(spectrum=source.properties.emission_spectrum),
+                absorptivity=self.properties.get_absorptivity(
+                    spectrum=source.properties.emission_spectrum),
             )
             for source, iface_properties in self.input_interfaces
         ]
@@ -204,19 +206,24 @@ class Sun(RadiationSurface):
         )
 
     def _assign_node(self, *args, **kwargs):
-        raise NotImplementedError(f'Method {_get_func_name_()} not implemented for Sun!')
+        raise NotImplementedError(
+            f'Method {_get_func_name_()} not implemented for Sun!')
 
     def add_input_interface(self, *args, **kwargs):
-        raise NotImplementedError(f'Method {_get_func_name_()} not implemented for Sun!')
+        raise NotImplementedError(
+            f'Method {_get_func_name_()} not implemented for Sun!')
 
     def calculate_heat_power_in_W(self, *args, **kwargs):
-        raise NotImplementedError(f'Method {_get_func_name_()} not implemented for Sun!')
+        raise NotImplementedError(
+            f'Method {_get_func_name_()} not implemented for Sun!')
 
     def calculate_heat_power_out_W(self, *args, **kwargs):
-        raise NotImplementedError(f'Method {_get_func_name_()} not implemented for Sun!')
+        raise NotImplementedError(
+            f'Method {_get_func_name_()} not implemented for Sun!')
 
     def calculate_neat_heat_power_out_W(self, *args, **kwargs):
-        raise NotImplementedError(f'Method {_get_func_name_()} not implemented for Sun!')
+        raise NotImplementedError(
+            f'Method {_get_func_name_()} not implemented for Sun!')
 
 
 class ThermalSystem:
@@ -252,7 +259,7 @@ class SimpleSystemTwoNodes(ThermalSystem):
         radiator = RadiationSurface(
             properties=RadiationSurfaceProperties(
                 area_m2=1,
-                orientation=[1, 0, 0], # +x
+                orientation=[1, 0, 0],  # +x
                 emissivity=0.8,
                 solar_absorptivity=0.2,  # white paint
             )
@@ -260,7 +267,7 @@ class SimpleSystemTwoNodes(ThermalSystem):
         solar_panel_xm = RadiationSurface(
             properties=RadiationSurfaceProperties(
                 area_m2=1,
-                orientation=[-1, 0, 0], # -x
+                orientation=[-1, 0, 0],  # -x
                 emissivity=0.9,
                 solar_absorptivity=0.9,
             )
@@ -268,7 +275,7 @@ class SimpleSystemTwoNodes(ThermalSystem):
         solar_panel_yp = RadiationSurface(
             properties=RadiationSurfaceProperties(
                 area_m2=1,
-                orientation=[0, 1, 0], # +y
+                orientation=[0, 1, 0],  # +y
                 emissivity=0.9,
                 solar_absorptivity=0.9,
             )
@@ -346,14 +353,16 @@ class SimpleSystemTwoNodes(ThermalSystem):
         # Eq_2:
         #   dT2/dt [K / s] = - 1 / C2 [W * s / K] * Q2_out_neat [W]
         equations = [
-            - (1 / node.properties.thermal_capacity_J_per_K) * node.calculate_neat_heat_power_out_W(t=t)
+            - (1 / node.properties.thermal_capacity_J_per_K) *
+            node.calculate_neat_heat_power_out_W(t=t)
             for node in (self.node_radiator, self.node_solar_panels)
         ]
         return equations
 
 
-def run():
-    import math
+def run(
+    fig_filename: str = None,
+):
     import matplotlib
     import matplotlib.pyplot as plt
     import numpy as np
@@ -370,7 +379,8 @@ def run():
     args = ()
 
     # Solve the IVP
-    sol = solve_ivp(fun=system, t_span=t_span, y0=y0, args=args, dense_output=True)
+    sol = solve_ivp(fun=system, t_span=t_span, y0=y0,
+                    args=args, dense_output=True)
 
     # Access the solution
     print("Times:", sol.t)
@@ -388,10 +398,12 @@ def run():
     plt.legend(shadow=True)
     plt.title('Thermal System')
     plt.show()
+    if fig_filename is not None:
+        fig.savefig(fig_filename)
 
 
 def main():
-    run()
+    run(fig_filename='output.png')
 
 
 if __name__ == '__main__':

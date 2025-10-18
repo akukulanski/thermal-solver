@@ -2,7 +2,6 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 
 
-
 def versor(x: np.array) -> np.array:
     return x / np.linalg.norm(x)
 
