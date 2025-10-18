@@ -8,3 +8,8 @@ wheels/
 
 # Virtual environments
 .venv
+
+# Other files
+uv.lock
+.python-version
+examples/output
