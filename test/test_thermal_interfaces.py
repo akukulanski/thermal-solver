@@ -2,26 +2,28 @@ import numpy as np
 import pytest
 from unittest import mock
 
+from thermal_solver.components import (
+    HeatSource,
+    RadiationSurface,
+)
 from thermal_solver.constants import (
     STEFAN_BOLTZMANN_W_PER_M2_PER_K4,
     P_SOLAR_W_PER_M2,
 )
-from thermal_solver.vectors import (
-    versor,
-    rotate_around_axis,
-)
-from thermal_solver.thermal_interfaces import (
+from thermal_solver.lib import Sun
+from thermal_solver.node import Node
+from thermal_solver.properties import (
+    Spectrum,
     NodeProperties,
-    Node,
     RadiationSurfaceProperties,
     ContactSurfaceProperties,
     HeatSourceProperties,
-    HeatSource,
-    Spectrum,
     RadiationInterfaceProperties,
-    RadiationSurface,
-    Sun,
-    calculate_effective_area_factor,
+)
+from thermal_solver.utils import calculate_effective_area_factor
+from thermal_solver.vectors import (
+    versor,
+    rotate_around_axis,
 )
 
 
