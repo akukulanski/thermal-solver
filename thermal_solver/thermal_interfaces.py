@@ -94,6 +94,8 @@ class Spectrum(Enum):
 @dataclass(kw_only=True)
 class RadiationInterfaceProperties:
     view_factor: float  # from the perspective
+    # FIXME: the emission spectrum should be part of RadiationSurface and not part of
+    # the interface.
     spectrum: Spectrum = field(default=Spectrum.IR)
 
     # def get_symmetric(self, area, target_area_m2) -> RadiationInterfaceProperties:
@@ -128,7 +130,7 @@ class RadiationSurface:
         # The exposed area is then self.properties.area_m2 * properties.view_factor
         self.input_interfaces.append((source, properties))
 
-    def calculate_heat_transfered(
+    def calculate_heat_transfered_W(
         self,
         t: float,
         area_exposed_m2: float,
@@ -147,7 +149,7 @@ class RadiationSurface:
 
     def calculate_heat_power_in_W(self, t: float):
         q_in_W: list = [
-            source.calculate_heat_transfered(
+            source.calculate_heat_transfered_W(
                 t=t,
                 area_exposed_m2=self.properties.area_m2 * iface_properties.view_factor,
                 orientation=self.properties.orientation,
@@ -186,7 +188,7 @@ class Sun(RadiationSurface):
     # def calculate_heat_power_out(self) -> float:
     #     return P_SOLAR_W_PER_M2 # * self.properties.area_m2
 
-    def calculate_heat_transfered(
+    def calculate_heat_transfered_W(
         self,
         t: float,
         area_exposed_m2: float,

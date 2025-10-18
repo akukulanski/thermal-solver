@@ -67,11 +67,6 @@ def test_radiation_surface_properties():
     assert properties.get_absorptivity(Spectrum.VISIBLE) == 0.7
 
 
-@pytest.mark.skip(reason='Test not implemented')
-def test_contact_surface_properties():
-    ContactSurfaceProperties
-
-
 def test_radiation_interface_properties():
     properties = RadiationInterfaceProperties(
         view_factor=0.7,
@@ -85,7 +80,6 @@ def test_radiation_interface_properties():
     assert properties.spectrum == Spectrum.IR  # default is IR
 
 
-@pytest.mark.skip(reason='Test not implemented')
 def test_radiation_surface():
 
     surface = RadiationSurface(
@@ -110,27 +104,36 @@ def test_radiation_surface():
     assert surface.calculate_heat_power_in_W(t=0) == 0
     assert surface.calculate_neat_heat_power_out_W(t=0) == pytest.approx(expected_heat_power_out_W)
 
-    assert surface.calculate_heat_transfered(
+    # Not opposing faces, dot product forced to 0.
+    assert surface.calculate_heat_transfered_W(
         t=0, area_exposed_m2=2, orientation=[1, 0, 0], absorptivity=0.5
-    ) == pytest.approx(STEFAN_BOLTZMANN_W_PER_M2_PER_K4 * 0.7 * 2 * 1 * 0.5)
-
-    assert surface.calculate_heat_transfered(
-        t=0, area_exposed_m2=3, orientation=[1, 0, 0], absorptivity=0.4
-    ) == pytest.approx(STEFAN_BOLTZMANN_W_PER_M2_PER_K4 * 0.7 * 3 * 1 * 0.4)
-    assert surface.calculate_heat_transfered(
-        t=0, area_exposed_m2=3, orientation=[1, 1, 0], absorptivity=0.4
-    ) == pytest.approx(STEFAN_BOLTZMANN_W_PER_M2_PER_K4 * 0.7 * 3 * 1 * 0.4 / 2**.5)
+    ) == 0
+    # Opposing faces, dot product > 0.
+    assert surface.calculate_heat_transfered_W(
+        t=0, area_exposed_m2=2, orientation=[-1, 0, 0], absorptivity=0.5
+    ) == pytest.approx(STEFAN_BOLTZMANN_W_PER_M2_PER_K4 * 0.7 * 2 * 1 * 0.5 * 300**4)
+    assert surface.calculate_heat_transfered_W(
+        t=0, area_exposed_m2=3, orientation=[-1, 0, 0], absorptivity=0.4
+    ) == pytest.approx(STEFAN_BOLTZMANN_W_PER_M2_PER_K4 * 0.7 * 3 * 1 * 0.4 * 300**4)
+    assert surface.calculate_heat_transfered_W(
+        t=0, area_exposed_m2=3, orientation=[-1, -1, 0], absorptivity=0.4
+    ) == pytest.approx(STEFAN_BOLTZMANN_W_PER_M2_PER_K4 * 0.7 * 3 * 1 * 0.4 / 2**.5 * 300**4)
 
     other_surface_1 = RadiationSurface(properties=RadiationSurfaceProperties(
-        area_m2=4, orientation=[1, 0, 0], emissivity=0.8, solar_absorptivity=0.1
+        area_m2=4, orientation=[-1, 0, 0], emissivity=0.8, solar_absorptivity=0.1
     ))
     other_surface_2 = RadiationSurface(properties=RadiationSurfaceProperties(
-        area_m2=7, orientation=[1 / 2**.5, 1 / 2**.5, 0], emissivity=0.4, solar_absorptivity=0.2
+        area_m2=7, orientation=[-1 / 2**.5, -1 / 2**.5, 0], emissivity=0.4, solar_absorptivity=0.2
+    ))
+    other_surface_3 = RadiationSurface(properties=RadiationSurfaceProperties(
+        area_m2=9, orientation=[1 / 2**.5, 1 / 2**.5, 0], emissivity=0.4, solar_absorptivity=0.2
     ))
     other_surface_1.assign_node(mock.MagicMock())
     other_surface_2.assign_node(mock.MagicMock())
+    other_surface_3.assign_node(mock.MagicMock())
     other_surface_1.node.temperature = 400
     other_surface_2.node.temperature = 500
+    other_surface_3.node.temperature = 1000
     surface.add_input_interface(
         source=other_surface_1,
         properties=RadiationInterfaceProperties(view_factor=0.9, spectrum=Spectrum.IR)
@@ -141,6 +144,10 @@ def test_radiation_surface():
         # FIXME: the emission spectrum should be part of RadiationSurface and not part of
         # the interface.
     )
+    surface.add_input_interface(
+        source=other_surface_3,
+        properties=RadiationInterfaceProperties(view_factor=0.8, spectrum=Spectrum.VISIBLE)
+    )
 
     expected_heat_power_in_W = (
         # from first surface
@@ -150,7 +157,7 @@ def test_radiation_surface():
             * 0.9  # view factor surface -> other_surface_1
             * 1 # same orientation
             * 0.8 # emissivity of other_surface_1
-            * 0.7 # emissivity or absorptivity of surface
+            * 0.7 # absorptivity of surface in IR
             * 400**4 # temperature of other_surface_1
         )
         # from second surface
@@ -160,8 +167,12 @@ def test_radiation_surface():
             * 0.8  # view factor surface -> other_surface_2
             * 2**-.5 # 45 deg
             * 0.4 # emissivity of other_surface_2
-            * 0.7 # emissivity or absorptivity of surface
+            * 0.2 # absorptivity of surface in VISIBLE
             * 500**4 # temperature of other_surface_1
+        )
+        # from third surface (not opposing faces, 0)
+        + (
+            0
         )
     )
     assert surface.calculate_heat_power_in_W(t=0) == pytest.approx(expected_heat_power_in_W)
@@ -171,6 +182,11 @@ def test_radiation_surface():
 @pytest.mark.skip(reason='Test not implemented')
 def test_sun():
     Sun
+
+
+@pytest.mark.skip(reason='Test not implemented')
+def test_contact_surface_properties():
+    ContactSurfaceProperties
 
 
 @pytest.mark.skip(reason='Test not implemented')
