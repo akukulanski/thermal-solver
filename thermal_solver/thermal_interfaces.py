@@ -346,7 +346,7 @@ class SimpleSystemTwoNodes(ThermalSystem):
         # Eq_2:
         #   dT2/dt [K / s] = - 1 / C2 [W * s / K] * Q2_out_neat [W]
         equations = [
-            - (1 / node.properties.specific_heat_J_per_kg_per_K) * node.calculate_neat_heat_power_out_W(t=t)
+            - (1 / node.properties.thermal_capacity_J_per_K) * node.calculate_neat_heat_power_out_W(t=t)
             for node in (self.node_radiator, self.node_solar_panels)
         ]
         return equations
