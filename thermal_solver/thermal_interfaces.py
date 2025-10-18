@@ -13,6 +13,11 @@ from .vectors import (
 )
 
 
+def _get_func_name_():
+    import inspect
+    return inspect.currentframe().f_back.f_code.co_name
+
+
 class Spectrum(Enum):
     IR = auto()
     VISIBLE = auto()
@@ -52,7 +57,6 @@ class Node:
             component.calculate_neat_heat_power_out_W(t=t)
             for component in self.radiation_surfaces
         ])
-
 
 
 @dataclass(kw_only=True)
@@ -165,7 +169,6 @@ class RadiationSurface:
         return self.calculate_heat_power_out_W(t=t) - self.calculate_heat_power_in_W(t=t)
 
 
-
 class Sun(RadiationSurface):
 
     def __init__(self, sun_vector_getter: callable):
@@ -181,9 +184,6 @@ class Sun(RadiationSurface):
     def get_orientation(self, t: float = 0) -> np.ndarray | list:
         """Sun vector opposed in sign"""
         return -np.array(self.sun_vector_getter(t))
-
-    # def calculate_heat_power_out(self) -> float:
-    #     return P_SOLAR_W_PER_M2 # * self.properties.area_m2
 
     def calculate_heat_transfered_W(
         self,
@@ -217,11 +217,6 @@ class Sun(RadiationSurface):
 
     def calculate_neat_heat_power_out_W(self, *args, **kwargs):
         raise NotImplementedError(f'Method {_get_func_name_()} not implemented for Sun!')
-
-
-def _get_func_name_():
-    import inspect
-    return inspect.currentframe().f_back.f_code.co_name
 
 
 class ThermalSystem:
@@ -340,33 +335,16 @@ class SimpleSystemTwoNodes(ThermalSystem):
         self.node_solar_panels.add_radiation_surface(solar_panel_xm)
         self.node_solar_panels.add_radiation_surface(solar_panel_yp)
 
-
     def __call__(self, t, y, *args) -> list[float]:
-        # def eq_system(t, y):
-        #     T1, T2 = y
-        #     area_in_1_eff = get_area_in_1_eff(t)
-        #     area_in_2_eff = get_area_in_2_eff(t)
-        #     return [
-        #         # - m1 * c1 * dT1/dt = SF * emm_1 * area_rad_1 * T1**4 - abs_1 * area_in_1_eff * I_SUN - cond_12 * area_cond_12 * (T1 - T2)
-        #         - (1 / m1 / c1) * (SF * emm_1 * area_rad_1 * T1**4 - abs_1 * area_in_1_eff * I_SUN - cond_12 * area_cond_12 * (T1 - T2)),
-        #         # - m2 * c2 * dT2/dt = SF * emm_2 * area_rad_2 * T2**4 - abs_2 * area_in_2_eff * I_SUN - cond_21 * area_cond_21 * (T2 - T1)
-        #         - (1 / m2 / c2) * (SF * emm_2 * area_rad_2 * T2**4 - abs_2 * area_in_2_eff * I_SUN - cond_21 * area_cond_21 * (T2 - T1)),
-        #     ]
         T1, T2 = y
         # First assign temperatures to nodes, so calculations of heat power out are correct.
         self.node_radiator.temperature = T1
         self.node_solar_panels.temperature = T2
-
-        # eq_dT1_dt = (
-        #     - (1 / self.node_radiator.properties.specific_heat_J_per_kg_per_K)
-        #     * self.node_radiator.calculate_neat_heat_power_out_W(t=t)
-        # )
-        # eq_dT2_dt = (
-        #     - (1 / self.node_solar_panels.properties.specific_heat_J_per_kg_per_K)
-        #     * self.node_solar_panels.calculate_neat_heat_power_out_W(t=t)
-        # )
-        # return [eq_dT1_dt, eq_dT2_dt]
-
+        # Equations:
+        # Eq_1:
+        #   dT1/dt [K / s] = - 1 / C1 [W * s / K] * Q1_out_neat [W]
+        # Eq_2:
+        #   dT2/dt [K / s] = - 1 / C2 [W * s / K] * Q2_out_neat [W]
         equations = [
             - (1 / node.properties.specific_heat_J_per_kg_per_K) * node.calculate_neat_heat_power_out_W(t=t)
             for node in (self.node_radiator, self.node_solar_panels)
