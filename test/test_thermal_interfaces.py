@@ -337,10 +337,13 @@ def test_heat_source():
     source = HeatSource(properties=HeatSourceProperties(constant_power_W=0))
     assert source.calculate_neat_heat_power_out_W(t=0) == 0
     source = HeatSource(properties=HeatSourceProperties(constant_power_W=3))
-    assert source.calculate_neat_heat_power_out_W(t=0) == -3  # heat source, power out is negative
-    source = HeatSource(properties=HeatSourceProperties(power_getter=lambda t: 2 * t))
+    assert source.calculate_neat_heat_power_out_W(
+        t=0) == -3  # heat source, power out is negative
+    source = HeatSource(properties=HeatSourceProperties(
+        power_getter=lambda t: 2 * t))
     assert source.calculate_neat_heat_power_out_W(t=0) == 0
-    assert source.calculate_neat_heat_power_out_W(t=3) == -6  # heat source, power out is negative
+    assert source.calculate_neat_heat_power_out_W(
+        t=3) == -6  # heat source, power out is negative
 
 
 def test_node():
@@ -378,10 +381,12 @@ def test_node():
     ))
     surface_2.add_input_interface(surface_1, properties=RadiationInterfaceProperties(
         view_factor=3 / 8
-    )) # TODO: remove this and use "surface_1.add_input_interface(..., add_symmetric_interface=True)".
+        # TODO: remove this and use "surface_1.add_input_interface(..., add_symmetric_interface=True)".
+    ))
 
     # Create heat source
-    heat_source_1 = HeatSource(properties=HeatSourceProperties(constant_power_W=100))
+    heat_source_1 = HeatSource(
+        properties=HeatSourceProperties(constant_power_W=100))
 
     # Add surfaces and heat sources to node
     node.add_component(surface_1)

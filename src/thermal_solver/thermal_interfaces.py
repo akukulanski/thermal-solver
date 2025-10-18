@@ -261,9 +261,11 @@ class HeatSourceProperties:
 
     def __post_init__(self):
         if self.constant_power_W is None and self.power_getter is None:
-            raise TypeError(f'Either constant_power_W or power_getter should be defined')
+            raise TypeError(
+                f'Either constant_power_W or power_getter should be defined')
         elif self.constant_power_W is not None and self.power_getter is not None:
-            raise TypeError(f'Only one of constant_power_W or power_getter should be defined')
+            raise TypeError(
+                f'Only one of constant_power_W or power_getter should be defined')
         elif self.constant_power_W is not None:
             self.power_getter = lambda t: self.constant_power_W
 
