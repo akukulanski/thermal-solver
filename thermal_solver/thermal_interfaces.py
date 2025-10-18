@@ -13,6 +13,11 @@ from .vectors import (
 )
 
 
+class Spectrum(Enum):
+    IR = auto()
+    VISIBLE = auto()
+
+
 def calculate_effective_area_factor(orientation_a, orientation_b) -> float:
     """Return the dot procut between the two versors of the orientation of the
     surfaces, inverted in sign (opposing for positive factor), and at least 0"""
@@ -61,6 +66,7 @@ class RadiationSurfaceProperties:
     # - Nodes radiation in the model at T<400 K (IR)
     emissivity: float
     solar_absorptivity: float = field(default=None)
+    emission_spectrum: Spectrum = field(default=Spectrum.IR)
 
     def __post_init__(self):
         if self.solar_absorptivity is None:
@@ -83,17 +89,9 @@ class ContactSurfaceProperties:
     node_b: object
 
 
-class Spectrum(Enum):
-    IR = auto()
-    VISIBLE = auto()
-
-
 @dataclass(kw_only=True)
 class RadiationInterfaceProperties:
-    view_factor: float  # from the perspective
-    # FIXME: the emission spectrum should be part of RadiationSurface and not part of
-    # the interface.
-    spectrum: Spectrum = field(default=Spectrum.IR)
+    view_factor: float = field(default=1.0)  # from the perspective
 
     # def get_symmetric(self, area, target_area_m2) -> RadiationInterfaceProperties:
     #     # view_factor * area = new_view_factor * target_area_m2
@@ -124,6 +122,7 @@ class RadiationSurface:
         # from THIS radiation surface (self.properties.area_m2), and NOT source.properties.area_m2.
         # The exposed area is then self.properties.area_m2 * properties.view_factor
         self.input_interfaces.append((source, properties))
+        # FIXME: add symetric interface by default!
 
     def calculate_heat_transfered_W(
         self,
@@ -148,7 +147,7 @@ class RadiationSurface:
                 t=t,
                 area_exposed_m2=self.properties.area_m2 * iface_properties.view_factor,
                 orientation=self.properties.orientation,
-                absorptivity=self.properties.get_absorptivity(spectrum=iface_properties.spectrum),
+                absorptivity=self.properties.get_absorptivity(spectrum=source.properties.emission_spectrum),
             )
             for source, iface_properties in self.input_interfaces
         ]
@@ -171,10 +170,13 @@ class Sun(RadiationSurface):
 
     def __init__(self, sun_vector_getter: callable):
         self.sun_vector_getter = sun_vector_getter
-        # self.properties = RadiationSurfaceProperties(
-        #     area_m2=None, orientation=None,
-        #     emissivity=None, solar_absorptivity=None,
-        # )
+        self.properties = RadiationSurfaceProperties(
+            area_m2=None,
+            orientation=None,
+            emissivity=None,
+            solar_absorptivity=None,
+            emission_spectrum=Spectrum.VISIBLE,
+        )
 
     def get_orientation(self, t: float = 0) -> np.ndarray | list:
         """Sun vector opposed in sign"""
@@ -293,7 +295,6 @@ class SimpleSystemTwoNodes(ThermalSystem):
             source=sun,
             properties=RadiationInterfaceProperties(
                 view_factor=1.0,
-                spectrum=Spectrum.VISIBLE,
             ),
         )
 
@@ -313,7 +314,6 @@ class SimpleSystemTwoNodes(ThermalSystem):
             source=sun,
             properties=RadiationInterfaceProperties(
                 view_factor=1.0,
-                spectrum=Spectrum.VISIBLE,
             ),
         )
 
@@ -333,7 +333,6 @@ class SimpleSystemTwoNodes(ThermalSystem):
             source=sun,
             properties=RadiationInterfaceProperties(
                 view_factor=1.0,
-                spectrum=Spectrum.VISIBLE,
             ),
         )
 

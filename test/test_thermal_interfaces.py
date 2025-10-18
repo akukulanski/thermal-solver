@@ -70,10 +70,12 @@ def test_radiation_surface_properties():
         orientation=[1, 0, 0],
         emissivity=0.7,
         solar_absorptivity=0.2,
+        emission_spectrum=Spectrum.VISIBLE,
     )
     assert properties.solar_absorptivity == 0.2
     assert properties.get_absorptivity(Spectrum.IR) == 0.7
     assert properties.get_absorptivity(Spectrum.VISIBLE) == 0.2
+    assert properties.emission_spectrum == Spectrum.VISIBLE
 
     properties = RadiationSurfaceProperties(
         area_m2=2,
@@ -83,19 +85,15 @@ def test_radiation_surface_properties():
     assert properties.solar_absorptivity == 0.7  # default is same as IR emissivity
     assert properties.get_absorptivity(Spectrum.IR) == 0.7
     assert properties.get_absorptivity(Spectrum.VISIBLE) == 0.7
+    assert properties.emission_spectrum == Spectrum.IR # default is IR
 
 
 def test_radiation_interface_properties():
-    properties = RadiationInterfaceProperties(
-        view_factor=0.7,
-        spectrum=Spectrum.VISIBLE,
-    )
-    assert properties.spectrum == Spectrum.VISIBLE
+    properties = RadiationInterfaceProperties(view_factor=0.7)
+    assert properties.view_factor == 0.7
 
-    properties = RadiationInterfaceProperties(
-        view_factor=0.7,
-    )
-    assert properties.spectrum == Spectrum.IR  # default is IR
+    properties = RadiationInterfaceProperties()
+    assert properties.view_factor == 1.0  # default is 1
 
 
 def test_radiation_surface():
@@ -143,13 +141,19 @@ def test_radiation_surface():
     ) == pytest.approx(STEFAN_BOLTZMANN_W_PER_M2_PER_K4 * 0.7 * 3 * 1 * 0.4 / 2**.5 * 300**4)
 
     other_surface_1 = RadiationSurface(properties=RadiationSurfaceProperties(
-        area_m2=4, orientation=[-1, 0, 0], emissivity=0.8, solar_absorptivity=0.1
+        area_m2=4, orientation=[-1, 0, 0],
+        emissivity=0.8, solar_absorptivity=0.1,
+        emission_spectrum=Spectrum.IR
     ))
     other_surface_2 = RadiationSurface(properties=RadiationSurfaceProperties(
-        area_m2=7, orientation=[-1 / 2**.5, -1 / 2**.5, 0], emissivity=0.4, solar_absorptivity=0.2
+        area_m2=7, orientation=[-1 / 2**.5, -1 / 2**.5, 0],
+        emissivity=0.4, solar_absorptivity=0.2,
+        emission_spectrum=Spectrum.VISIBLE
     ))
     other_surface_3 = RadiationSurface(properties=RadiationSurfaceProperties(
-        area_m2=9, orientation=[1 / 2**.5, 1 / 2**.5, 0], emissivity=0.4, solar_absorptivity=0.2
+        area_m2=9, orientation=[1 / 2**.5, 1 / 2**.5, 0],
+        emissivity=0.4, solar_absorptivity=0.2,
+        emission_spectrum=Spectrum.VISIBLE
     ))
     nodes = [mock.MagicMock() for _ in range(3)]
     nodes[0].radiation_surfaces = [other_surface_1]
@@ -163,17 +167,15 @@ def test_radiation_surface():
     other_surface_3.node.temperature = 1000
     surface.add_input_interface(
         source=other_surface_1,
-        properties=RadiationInterfaceProperties(view_factor=0.9, spectrum=Spectrum.IR)
+        properties=RadiationInterfaceProperties(view_factor=0.9)
     )
     surface.add_input_interface(
         source=other_surface_2,
-        properties=RadiationInterfaceProperties(view_factor=0.8, spectrum=Spectrum.VISIBLE)
-        # FIXME: the emission spectrum should be part of RadiationSurface and not part of
-        # the interface.
+        properties=RadiationInterfaceProperties(view_factor=0.8)
     )
     surface.add_input_interface(
         source=other_surface_3,
-        properties=RadiationInterfaceProperties(view_factor=0.8, spectrum=Spectrum.VISIBLE)
+        properties=RadiationInterfaceProperties(view_factor=0.8)
     )
 
     expected_heat_power_in_W = (
@@ -267,11 +269,14 @@ def test_sun():
     ) == pytest.approx(P_SOLAR_W_PER_M2 * 0.2 / 2**.5)
 
     surface = RadiationSurface(
-        properties=RadiationSurfaceProperties(area_m2=3, orientation=[1, 0, 0], emissivity=0.5, solar_absorptivity=0.2)
+        properties=RadiationSurfaceProperties(
+            area_m2=3, orientation=[1, 0, 0],
+            emissivity=0.5, solar_absorptivity=0.2,
+            # emission_spectrum=
+        )
     )
     surface.add_input_interface(sun, properties=RadiationInterfaceProperties(
         view_factor=0.9,
-        spectrum=Spectrum.VISIBLE,  # FIXME: move to radiation surface properties
     ))
     assert surface.calculate_heat_power_in_W(t=0) == pytest.approx(
         P_SOLAR_W_PER_M2
@@ -294,27 +299,29 @@ def test_node():
     node = Node(properties=properties)
 
     surface_1 = RadiationSurface(
-        properties=RadiationSurfaceProperties(area_m2=3, orientation=[1, 0, 0], emissivity=0.5, solar_absorptivity=0.25)
+        properties=RadiationSurfaceProperties(
+            area_m2=3, orientation=[1, 0, 0],
+            emissivity=0.5, solar_absorptivity=0.25,
+            emission_spectrum=Spectrum.IR,
+        )
     )
     surface_2 = RadiationSurface(
-        properties=RadiationSurfaceProperties(area_m2=8, orientation=[-1 / 2**.5, -1 / 2**.5, 0], emissivity=0.33, solar_absorptivity=0.3)
+        properties=RadiationSurfaceProperties(
+            area_m2=8, orientation=[-1 / 2**.5, -1 / 2**.5, 0],
+            emissivity=0.33, solar_absorptivity=0.3,
+            emission_spectrum=Spectrum.IR,
+        )
     )
     sun = Sun(sun_vector_getter=get_sun_position)
 
-    surface_1.add_input_interface(sun, properties=RadiationInterfaceProperties(
-        view_factor=1.0,
-        spectrum=Spectrum.VISIBLE,
-    ))
-    surface_2.add_input_interface(sun, properties=RadiationInterfaceProperties(
-        view_factor=1.0,
-        spectrum=Spectrum.VISIBLE,
-    ))
+    surface_1.add_input_interface(sun, properties=RadiationInterfaceProperties())
+    surface_2.add_input_interface(sun, properties=RadiationInterfaceProperties())
 
     surface_1.add_input_interface(surface_2, properties=RadiationInterfaceProperties(
-        view_factor=1, spectrum=Spectrum.IR
+        view_factor=1
     ))
     surface_2.add_input_interface(surface_1, properties=RadiationInterfaceProperties(
-        view_factor=3 / 8, spectrum=Spectrum.IR
+        view_factor=3 / 8
     )) # FIXME: create symetric interface by default!
 
     node.add_radiation_surface(surface_1)
