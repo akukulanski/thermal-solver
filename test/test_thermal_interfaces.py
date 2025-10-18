@@ -173,16 +173,19 @@ def test_radiation_surface():
     other_surface_3.node.temperature = 1000
     surface.add_input_interface(
         source=other_surface_1,
-        properties=RadiationInterfaceProperties(view_factor=0.9)
+        properties=RadiationInterfaceProperties(view_factor=0.9),
+        add_symmetric_interface=False,
     )
     with pytest.raises(ValueError):
         surface.add_input_interface(
             source=other_surface_1,
-            properties=RadiationInterfaceProperties(view_factor=0.9)
+            properties=RadiationInterfaceProperties(view_factor=0.9),
+            add_symmetric_interface=False,
         )
     surface.add_input_interface(
         source=other_surface_2,
-        properties=RadiationInterfaceProperties(view_factor=0.8)
+        properties=RadiationInterfaceProperties(view_factor=0.8),
+        add_symmetric_interface=False,
     )
     surface.add_input_interface(
         source=other_surface_3,
@@ -380,10 +383,6 @@ def test_node():
     # Create interfaces between surface_1 and surface_2
     surface_1.add_input_interface(surface_2, properties=RadiationInterfaceProperties(
         view_factor=1
-    ))
-    surface_2.add_input_interface(surface_1, properties=RadiationInterfaceProperties(
-        view_factor=3 / 8
-        # TODO: remove this and use "surface_1.add_input_interface(..., add_symmetric_interface=True)".
     ))
 
     # Create heat source

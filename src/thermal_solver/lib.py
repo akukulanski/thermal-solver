@@ -26,14 +26,14 @@ __all__ = [
 class Sun(RadiationSurface):
 
     def __init__(self, sun_vector_getter: callable):
-        self.sun_vector_getter = sun_vector_getter
-        self.properties = RadiationSurfaceProperties(
-            area_m2=None,
+        super().__init__(properties=RadiationSurfaceProperties(
+            area_m2=np.inf,
             orientation=None,
             emissivity=None,
             solar_absorptivity=None,
             emission_spectrum=Spectrum.VISIBLE,
-        )
+        ))
+        self.sun_vector_getter = sun_vector_getter
 
     def get_orientation(self, t: float = 0) -> np.ndarray | list:
         """Sun vector opposed in sign"""
@@ -61,8 +61,8 @@ class Sun(RadiationSurface):
             f'Method {_get_func_name_()} not implemented for Sun!')
 
     def add_input_interface(self, *args, **kwargs):
-        raise NotImplementedError(
-            f'Method {_get_func_name_()} not implemented for Sun!')
+        """Input interfaces for the Sun are ignored"""
+        pass
 
     def calculate_heat_power_in_W(self, *args, **kwargs):
         raise NotImplementedError(

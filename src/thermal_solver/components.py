@@ -65,7 +65,7 @@ class RadiationSurface(Component):
         return None
 
     def add_input_interface(self, source: RadiationSurface, properties: RadiationInterfaceProperties,
-                            add_symmetric_interface: bool = False):
+                            add_symmetric_interface: bool = True):
         """Add input interface"""
         # NOTE: RadiationInterfaceProperties.view_factor is the view factor from the perspective
         # from THIS radiation surface (self.properties.area_m2), and NOT source.properties.area_m2.
