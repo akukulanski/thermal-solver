@@ -160,6 +160,8 @@ class RadiationSurface:
         return sum(q_in_W)
 
     def calculate_heat_power_out_W(self, t: float) -> float:
+        # TODO: add consistency check. Ensure that all the associated interfaces
+        # are not adding up more power than the total output power.
         return (
             STEFAN_BOLTZMANN_W_PER_M2_PER_K4
             * self.properties.emissivity
@@ -193,7 +195,6 @@ class Sun(RadiationSurface):
         area_exposed_m2: float,
         orientation: np.ndarray,
         absorptivity: float,
-        # t,  # FIXME: add t everywhere! Or make global?
     ) -> float:
         sun_orientation = self.get_orientation(t)
         effective_area_factor = calculate_effective_area_factor(
