@@ -40,8 +40,7 @@ class Node:
     def add_radiation_surface(self, surface: RadiationSurface):
         assert surface not in self.radiation_surfaces
         self.radiation_surfaces.append(surface)
-        if surface.node is None:
-            surface.assign_node(self)
+        surface._assign_node(self)
 
     def calculate_neat_heat_power_out_W(self, t: float) -> float:
         return sum([
@@ -110,10 +109,14 @@ class RadiationSurface:
         self.input_interfaces: list[tuple[RadiationSurface, RadiationInterfaceProperties]] = []
         self.node: Node = None
 
-    def assign_node(self, node: Node):
+    def _assign_node(self, node: Node):
         assert self.node is None, f'Surface already assigned to node ({self.node})'
+        assert self in node.radiation_surfaces, (
+            f'Incorrect use of internal method {self.__class__.__name__}.{_get_func_name_()}(): '
+            f'Trying to assign node to surface, but surface not in Node.\n'
+            f'Use Node.add_radiation_surface() instead.'
+        )
         self.node: Node = node
-        node.add_radiation_surface(self)
 
     def add_input_interface(self, source: RadiationSurface, properties: RadiationInterfaceProperties):
         """Add input interface"""
@@ -198,7 +201,7 @@ class Sun(RadiationSurface):
             * absorptivity
         )
 
-    def assign_node(self, *args, **kwargs):
+    def _assign_node(self, *args, **kwargs):
         raise NotImplementedError(f'Method {_get_func_name_()} not implemented for Sun!')
 
     def add_input_interface(self, *args, **kwargs):
@@ -334,9 +337,9 @@ class SimpleSystemTwoNodes(ThermalSystem):
             ),
         )
 
-        radiator.assign_node(self.node_radiator)
-        solar_panel_xm.assign_node(self.node_solar_panels)
-        solar_panel_yp.assign_node(self.node_solar_panels)
+        self.node_radiator.add_radiation_surface(radiator)
+        self.node_solar_panels.add_radiation_surface(solar_panel_xm)
+        self.node_solar_panels.add_radiation_surface(solar_panel_yp)
 
 
     def __call__(self, t, y, *args) -> list[float]:
