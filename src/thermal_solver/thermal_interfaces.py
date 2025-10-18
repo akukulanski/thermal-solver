@@ -97,11 +97,11 @@ class ContactSurfaceProperties:
 class RadiationInterfaceProperties:
     view_factor: float = field(default=1.0)  # from the perspective
 
-    # def get_symmetric(self, area, target_area_m2) -> RadiationInterfaceProperties:
-    #     # view_factor * area = new_view_factor * target_area_m2
-    #     return RadiationInterfaceProperties(
-    #         view_factor=self.view_factor * area / target_area_m2
-    #     )
+    def get_symmetric_properties(self, area_m2, target_area_m2) -> RadiationInterfaceProperties:
+        # view_factor * area_m2 = new_view_factor * target_area_m2
+        return RadiationInterfaceProperties(
+            view_factor=self.view_factor * area_m2 / target_area_m2
+        )
 
 
 class RadiationSurface:
@@ -121,13 +121,30 @@ class RadiationSurface:
         )
         self.node: Node = node
 
-    def add_input_interface(self, source: RadiationSurface, properties: RadiationInterfaceProperties):
+    def _source_in_interfaces(self, source: RadiationSurface) -> bool:
+        return self.get_source_interface(source) is not None
+
+    def get_source_interface(self, source: RadiationSurface) -> RadiationInterfaceProperties | None:
+        for src, props in self.input_interfaces:
+            if src is source:
+                return props
+        return None
+
+    def add_input_interface(self, source: RadiationSurface, properties: RadiationInterfaceProperties,
+                            add_symmetric_interface: bool = False):
         """Add input interface"""
         # NOTE: RadiationInterfaceProperties.view_factor is the view factor from the perspective
         # from THIS radiation surface (self.properties.area_m2), and NOT source.properties.area_m2.
         # The exposed area is then self.properties.area_m2 * properties.view_factor
+        if self._source_in_interfaces(source):
+            raise ValueError(f'Source already added')
         self.input_interfaces.append((source, properties))
-        # FIXME: add symetric interface by default!
+        if add_symmetric_interface:
+            symmetric_interface_properties = properties.get_symmetric_properties(
+                area_m2=self.properties.area_m2,
+                target_area_m2=source.properties.area_m2,
+            )
+            source.add_input_interface(self, symmetric_interface_properties, add_symmetric_interface=False)
 
     def calculate_heat_transfered_W(
         self,

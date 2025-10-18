@@ -19,8 +19,6 @@ from thermal_solver.thermal_interfaces import (
     RadiationInterfaceProperties,
     RadiationSurface,
     Sun,
-    ThermalSystem,
-    SimpleSystemTwoNodes,
     calculate_effective_area_factor,
 )
 
@@ -169,13 +167,29 @@ def test_radiation_surface():
         source=other_surface_1,
         properties=RadiationInterfaceProperties(view_factor=0.9)
     )
+    with pytest.raises(ValueError):
+        surface.add_input_interface(
+            source=other_surface_1,
+            properties=RadiationInterfaceProperties(view_factor=0.9)
+        )
     surface.add_input_interface(
         source=other_surface_2,
         properties=RadiationInterfaceProperties(view_factor=0.8)
     )
     surface.add_input_interface(
         source=other_surface_3,
-        properties=RadiationInterfaceProperties(view_factor=0.8)
+        properties=RadiationInterfaceProperties(view_factor=0.8),
+        add_symmetric_interface=True,
+    )
+
+    iface = other_surface_3.get_source_interface(surface)
+    assert not other_surface_1._source_in_interfaces(surface)
+    assert not other_surface_2._source_in_interfaces(surface)
+    assert other_surface_3._source_in_interfaces(surface)
+    assert other_surface_3.input_interfaces[0][0] is surface
+    assert other_surface_3.input_interfaces[0][1] is iface
+    assert other_surface_3.properties.area_m2 * iface.view_factor == pytest.approx(
+        surface.properties.area_m2 * 0.8
     )
 
     expected_heat_power_in_W = (
