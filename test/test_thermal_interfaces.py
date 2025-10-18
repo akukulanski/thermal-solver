@@ -53,8 +53,10 @@ def test_calculate_effective_area_factor():
 
 
 def test_rotate_around_axis():
-    assert all(np.isclose(rotate_around_axis([1, 0, 0], [0, 0, 1], np.pi / 2), [0, 1, 0]))
-    assert all(rotate_around_axis([1, 0, 0], [0, 0, 1], np.pi / 2, round_to=8) == [0, 1, 0])
+    assert all(np.isclose(rotate_around_axis(
+        [1, 0, 0], [0, 0, 1], np.pi / 2), [0, 1, 0]))
+    assert all(rotate_around_axis(
+        [1, 0, 0], [0, 0, 1], np.pi / 2, round_to=8) == [0, 1, 0])
 
 
 def test_node_properties():
@@ -83,7 +85,7 @@ def test_radiation_surface_properties():
     assert properties.solar_absorptivity == 0.7  # default is same as IR emissivity
     assert properties.get_absorptivity(Spectrum.IR) == 0.7
     assert properties.get_absorptivity(Spectrum.VISIBLE) == 0.7
-    assert properties.emission_spectrum == Spectrum.IR # default is IR
+    assert properties.emission_spectrum == Spectrum.IR  # default is IR
 
 
 def test_radiation_interface_properties():
@@ -119,9 +121,11 @@ def test_radiation_surface():
         * 2
         * 300**4
     )
-    assert surface.calculate_heat_power_out_W(t=0) == pytest.approx(expected_heat_power_out_W)
+    assert surface.calculate_heat_power_out_W(
+        t=0) == pytest.approx(expected_heat_power_out_W)
     assert surface.calculate_heat_power_in_W(t=0) == 0
-    assert surface.calculate_neat_heat_power_out_W(t=0) == pytest.approx(expected_heat_power_out_W)
+    assert surface.calculate_neat_heat_power_out_W(
+        t=0) == pytest.approx(expected_heat_power_out_W)
 
     # Not opposing faces, dot product forced to 0.
     assert surface.calculate_heat_transfered_W(
@@ -196,30 +200,32 @@ def test_radiation_surface():
         # from first surface
         (
             STEFAN_BOLTZMANN_W_PER_M2_PER_K4
-            * 2 # area of surface
+            * 2  # area of surface
             * 0.9  # view factor surface -> other_surface_1
-            * 1 # same orientation
-            * 0.8 # emissivity of other_surface_1
-            * 0.7 # absorptivity of surface in IR
-            * 400**4 # temperature of other_surface_1
+            * 1  # same orientation
+            * 0.8  # emissivity of other_surface_1
+            * 0.7  # absorptivity of surface in IR
+            * 400**4  # temperature of other_surface_1
         )
         # from second surface
         + (
             STEFAN_BOLTZMANN_W_PER_M2_PER_K4
-            * 2 # area of surface
+            * 2  # area of surface
             * 0.8  # view factor surface -> other_surface_2
-            * 2**-.5 # 45 deg
-            * 0.4 # emissivity of other_surface_2
-            * 0.2 # absorptivity of surface in VISIBLE
-            * 500**4 # temperature of other_surface_1
+            * 2**-.5  # 45 deg
+            * 0.4  # emissivity of other_surface_2
+            * 0.2  # absorptivity of surface in VISIBLE
+            * 500**4  # temperature of other_surface_1
         )
         # from third surface (not opposing faces, 0)
         + (
             0
         )
     )
-    assert surface.calculate_heat_power_in_W(t=0) == pytest.approx(expected_heat_power_in_W)
-    assert surface.calculate_neat_heat_power_out_W(t=0) == pytest.approx(expected_heat_power_out_W - expected_heat_power_in_W)
+    assert surface.calculate_heat_power_in_W(
+        t=0) == pytest.approx(expected_heat_power_in_W)
+    assert surface.calculate_neat_heat_power_out_W(t=0) == pytest.approx(
+        expected_heat_power_out_W - expected_heat_power_in_W)
 
 
 def test_sun():
@@ -227,7 +233,8 @@ def test_sun():
     sun = Sun(sun_vector_getter=get_sun_position)
     # NOTE: orientation = -position (to match criteria used for surfaces)
     assert all(np.isclose(sun.get_orientation(t=0), [-1, 0, 0]))
-    assert all(np.isclose(sun.get_orientation(t=3 * 3600), [-1 / 2**.5, -1 / 2**.5, 0]))
+    assert all(np.isclose(sun.get_orientation(
+        t=3 * 3600), [-1 / 2**.5, -1 / 2**.5, 0]))
     assert all(np.isclose(sun.get_orientation(t=6 * 3600), [0, -1, 0]))
     assert all(np.isclose(sun.get_orientation(t=12 * 3600), [+1, 0, 0]))
     assert all(np.isclose(sun.get_orientation(t=18 * 3600), [0, +1, 0]))
@@ -294,10 +301,10 @@ def test_sun():
     ))
     assert surface.calculate_heat_power_in_W(t=0) == pytest.approx(
         P_SOLAR_W_PER_M2
-        * 3 # area
-        * 0.9 # view factor
-        * 0.2 # solar_absorptivity
-        * 1 # vectors aligned
+        * 3  # area
+        * 0.9  # view factor
+        * 0.2  # solar_absorptivity
+        * 1  # vectors aligned
     )
     assert surface.calculate_heat_power_in_W(t=6 * 3600) == 0
 
@@ -328,15 +335,17 @@ def test_node():
     )
     sun = Sun(sun_vector_getter=get_sun_position)
 
-    surface_1.add_input_interface(sun, properties=RadiationInterfaceProperties())
-    surface_2.add_input_interface(sun, properties=RadiationInterfaceProperties())
+    surface_1.add_input_interface(
+        sun, properties=RadiationInterfaceProperties())
+    surface_2.add_input_interface(
+        sun, properties=RadiationInterfaceProperties())
 
     surface_1.add_input_interface(surface_2, properties=RadiationInterfaceProperties(
         view_factor=1
     ))
     surface_2.add_input_interface(surface_1, properties=RadiationInterfaceProperties(
         view_factor=3 / 8
-    )) # FIXME: create symetric interface by default!
+    ))  # FIXME: create symetric interface by default!
 
     node.add_radiation_surface(surface_1)
     node.add_radiation_surface(surface_2)
@@ -358,10 +367,14 @@ def test_node():
             - surface_2.calculate_heat_power_in_W(t=t)
         )
         assert surface_1.calculate_heat_power_in_W(t=t) == pytest.approx(
-            sun.calculate_heat_transfered_W(t=t, area_exposed_m2=3, orientation=[1, 0, 0], absorptivity=0.25)
-            + surface_2.calculate_heat_transfered_W(t=t, area_exposed_m2=3*1, orientation=[1, 0, 0], absorptivity=0.5)
+            sun.calculate_heat_transfered_W(t=t, area_exposed_m2=3, orientation=[
+                                            1, 0, 0], absorptivity=0.25)
+            + surface_2.calculate_heat_transfered_W(
+                t=t, area_exposed_m2=3*1, orientation=[1, 0, 0], absorptivity=0.5)
         )
         assert surface_2.calculate_heat_power_in_W(t=t) == pytest.approx(
-            sun.calculate_heat_transfered_W(t=t, area_exposed_m2=8, orientation=[-1 / 2**.5, -1 / 2**.5, 0], absorptivity=0.3)
-            + surface_1.calculate_heat_transfered_W(t=t, area_exposed_m2=8*3/8, orientation=[-1 / 2**.5, -1 / 2**.5, 0], absorptivity=0.33)
+            sun.calculate_heat_transfered_W(
+                t=t, area_exposed_m2=8, orientation=[-1 / 2**.5, -1 / 2**.5, 0], absorptivity=0.3)
+            + surface_1.calculate_heat_transfered_W(
+                t=t, area_exposed_m2=8*3/8, orientation=[-1 / 2**.5, -1 / 2**.5, 0], absorptivity=0.33)
         )

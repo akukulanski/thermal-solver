@@ -144,7 +144,8 @@ class RadiationSurface:
                 area_m2=self.properties.area_m2,
                 target_area_m2=source.properties.area_m2,
             )
-            source.add_input_interface(self, symmetric_interface_properties, add_symmetric_interface=False)
+            source.add_input_interface(
+                self, symmetric_interface_properties, add_symmetric_interface=False)
 
     def calculate_heat_transfered_W(
         self,
