@@ -65,7 +65,7 @@ class RadiationSurfaceProperties:
     emissivity: float
     solar_absorptivity: float = field(default=None)
 
-    def __post__init__(self):
+    def __post_init__(self):
         if self.solar_absorptivity is None:
             self.solar_absorptivity = self.emissivity
 

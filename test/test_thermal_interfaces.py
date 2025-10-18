@@ -20,20 +20,24 @@ from thermal_solver.thermal_interfaces import (
 )
 
 def test_versor():
-    assert versor([10, 0, 0]) == [1, 0, 0]
+    assert all(versor([10, 0, 0]) == [1, 0, 0])
     assert all(np.isclose(versor([1, 1, 1]), [3**-.5, 3**-.5, 3**-.5]))
 
 
 def test_calculate_effective_area_factor():
     assert calculate_effective_area_factor(
-        orientation_a=[10, 0, 0], orientation_b=[10, 0, 0]
+        orientation_a=[10, 0, 0], orientation_b=[-10, 0, 0]
     ) == 1
     assert calculate_effective_area_factor(
         orientation_a=[0, 10, 0], orientation_b=[10, 0, 0]
     ) == 0
     assert calculate_effective_area_factor(
-        orientation_a=[1, 1, 0], orientation_b=[1, 0, 0]
+        orientation_a=[1, 1, 0], orientation_b=[-1, 0, 0]
     ) == pytest.approx(1 / 2**.5)
+    # Not opposed, never negative, then zero
+    assert calculate_effective_area_factor(
+        orientation_a=[10, 0, 0], orientation_b=[10, 0, 0]
+    ) == 0
 
 
 
