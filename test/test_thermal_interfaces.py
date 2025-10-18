@@ -15,6 +15,8 @@ from thermal_solver.thermal_interfaces import (
     Node,
     RadiationSurfaceProperties,
     ContactSurfaceProperties,
+    HeatSourceProperties,
+    HeatSource,
     Spectrum,
     RadiationInterfaceProperties,
     RadiationSurface,
@@ -108,7 +110,7 @@ def test_radiation_surface():
     )
     node = mock.MagicMock()
     node.temperature = 300
-    node.radiation_surfaces = [surface]
+    node.iterate_components.return_value = [surface]
     surface._assign_node(node)
 
     with pytest.raises(AssertionError):
@@ -158,9 +160,9 @@ def test_radiation_surface():
         emission_spectrum=Spectrum.VISIBLE
     ))
     nodes = [mock.MagicMock() for _ in range(3)]
-    nodes[0].radiation_surfaces = [other_surface_1]
-    nodes[1].radiation_surfaces = [other_surface_2]
-    nodes[2].radiation_surfaces = [other_surface_3]
+    nodes[0].iterate_components.return_value = [other_surface_1]
+    nodes[1].iterate_components.return_value = [other_surface_2]
+    nodes[2].iterate_components.return_value = [other_surface_3]
     other_surface_1._assign_node(nodes[0])
     other_surface_2._assign_node(nodes[1])
     other_surface_3._assign_node(nodes[2])
@@ -315,10 +317,37 @@ def test_contact_surface_properties():
     raise NotImplementedError()
 
 
+def test_heat_source_properties():
+    properties = HeatSourceProperties(constant_power_W=0)
+    assert properties.get_power_W(t=0) == 0
+    properties = HeatSourceProperties(constant_power_W=3)
+    assert properties.get_power_W(t=0) == 3
+    properties = HeatSourceProperties(power_getter=lambda t: 2 * t)
+    assert properties.get_power_W(t=0) == 0
+    assert properties.get_power_W(t=3) == 6
+    with pytest.raises(TypeError):
+        HeatSourceProperties(constant_power_W=0, power_getter=lambda t: 2 * t)
+    with pytest.raises(TypeError):
+        HeatSourceProperties(constant_power_W=1, power_getter=lambda t: 2 * t)
+    with pytest.raises(TypeError):
+        HeatSourceProperties()
+
+
+def test_heat_source():
+    source = HeatSource(properties=HeatSourceProperties(constant_power_W=0))
+    assert source.calculate_neat_heat_power_out_W(t=0) == 0
+    source = HeatSource(properties=HeatSourceProperties(constant_power_W=3))
+    assert source.calculate_neat_heat_power_out_W(t=0) == -3  # heat source, power out is negative
+    source = HeatSource(properties=HeatSourceProperties(power_getter=lambda t: 2 * t))
+    assert source.calculate_neat_heat_power_out_W(t=0) == 0
+    assert source.calculate_neat_heat_power_out_W(t=3) == -6  # heat source, power out is negative
+
+
 def test_node():
     properties = NodeProperties(mass_kg=2, specific_heat_J_per_kg_per_K=300)
     node = Node(properties=properties)
 
+    # Create node surfaces
     surface_1 = RadiationSurface(
         properties=RadiationSurfaceProperties(
             area_m2=3, orientation=[1, 0, 0],
@@ -333,23 +362,33 @@ def test_node():
             emission_spectrum=Spectrum.IR,
         )
     )
+
+    # Create sun
     sun = Sun(sun_vector_getter=get_sun_position)
 
+    # Create interfaces between surfaces and sun
     surface_1.add_input_interface(
         sun, properties=RadiationInterfaceProperties())
     surface_2.add_input_interface(
         sun, properties=RadiationInterfaceProperties())
 
+    # Create interfaces between surface_1 and surface_2
     surface_1.add_input_interface(surface_2, properties=RadiationInterfaceProperties(
         view_factor=1
     ))
     surface_2.add_input_interface(surface_1, properties=RadiationInterfaceProperties(
         view_factor=3 / 8
-    ))  # FIXME: create symetric interface by default!
+    )) # TODO: remove this and use "surface_1.add_input_interface(..., add_symmetric_interface=True)".
 
+    # Create heat source
+    heat_source_1 = HeatSource(properties=HeatSourceProperties(constant_power_W=100))
+
+    # Add surfaces and heat sources to node
     node.add_radiation_surface(surface_1)
     node.add_radiation_surface(surface_2)
+    node.add_heat_source(heat_source_1)
 
+    # Set the node temperature
     node.temperature = 350
 
     # Don't check numbers as they are checked in unit tests of each class, but check consistency
@@ -357,6 +396,7 @@ def test_node():
         assert node.calculate_neat_heat_power_out_W(t=t) == pytest.approx(
             surface_1.calculate_neat_heat_power_out_W(t=t)
             + surface_2.calculate_neat_heat_power_out_W(t=t)
+            + heat_source_1.calculate_neat_heat_power_out_W(t=t)
         )
         assert surface_1.calculate_neat_heat_power_out_W(t=t) == pytest.approx(
             surface_1.calculate_heat_power_out_W(t=t)

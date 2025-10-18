@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import abc
 from dataclasses import dataclass, field
 from enum import Enum, auto
 import numpy as np
@@ -45,6 +46,7 @@ class Node:
     def __init__(self, properties: NodeProperties):
         self.properties = properties
         self.radiation_surfaces: list[RadiationSurface] = []
+        self.heat_sources: list[HeatSource] = []
         self.temperature: float = None
 
     def add_radiation_surface(self, surface: RadiationSurface):
@@ -52,10 +54,19 @@ class Node:
         self.radiation_surfaces.append(surface)
         surface._assign_node(self)
 
+    def add_heat_source(self, source: HeatSource):
+        assert source not in self.heat_sources
+        self.heat_sources.append(source)
+        source._assign_node(self)
+
+    def iterate_components(self):
+        for component in self.radiation_surfaces + self.heat_sources:
+            yield component
+
     def calculate_neat_heat_power_out_W(self, t: float) -> float:
         return sum([
             component.calculate_neat_heat_power_out_W(t=t)
-            for component in self.radiation_surfaces
+            for component in self.iterate_components()
         ])
 
 
@@ -104,22 +115,32 @@ class RadiationInterfaceProperties:
         )
 
 
-class RadiationSurface:
+class Component(abc.ABC):
 
-    def __init__(self, properties: RadiationSurfaceProperties):
-        self.properties = properties
-        self.input_interfaces: list[tuple[RadiationSurface,
-                                          RadiationInterfaceProperties]] = []
+    def __init__(self):
         self.node: Node = None
 
     def _assign_node(self, node: Node):
-        assert self.node is None, f'Surface already assigned to node ({self.node})'
-        assert self in node.radiation_surfaces, (
+        assert self.node is None, f'Component already assigned to node ({self.node})'
+        assert self in node.iterate_components(), (
             f'Incorrect use of internal method {self.__class__.__name__}.{_get_func_name_()}(): '
-            f'Trying to assign node to surface, but surface not in Node.\n'
-            f'Use Node.add_radiation_surface() instead.'
+            f'Trying to assign node to component, but component not in Node.\n'
+            f'Use Node.add_radiation_surface() or Node.add_heat_source() instead.'
         )
         self.node: Node = node
+
+    @abc.abstractmethod
+    def calculate_neat_heat_power_out_W(self, t: float) -> float:
+        raise NotImplementedError()
+
+
+class RadiationSurface(Component):
+
+    def __init__(self, properties: RadiationSurfaceProperties):
+        super().__init__()
+        self.properties = properties
+        self.input_interfaces: list[tuple[RadiationSurface,
+                                          RadiationInterfaceProperties]] = []
 
     def _source_in_interfaces(self, source: RadiationSurface) -> bool:
         return self.get_source_interface(source) is not None
@@ -243,3 +264,30 @@ class Sun(RadiationSurface):
     def calculate_neat_heat_power_out_W(self, *args, **kwargs):
         raise NotImplementedError(
             f'Method {_get_func_name_()} not implemented for Sun!')
+
+
+@dataclass(kw_only=True)
+class HeatSourceProperties:
+    constant_power_W: float = field(default=None)
+    power_getter: callable = field(default=None)
+
+    def __post_init__(self):
+        if self.constant_power_W is None and self.power_getter is None:
+            raise TypeError(f'Either constant_power_W or power_getter should be defined')
+        elif self.constant_power_W is not None and self.power_getter is not None:
+            raise TypeError(f'Only one of constant_power_W or power_getter should be defined')
+        elif self.constant_power_W is not None:
+            self.power_getter = lambda t: self.constant_power_W
+
+    def get_power_W(self, t: float) -> float:
+        return self.power_getter(t=t)
+
+
+class HeatSource(Component):
+
+    def __init__(self, properties: HeatSourceProperties):
+        super().__init__()
+        self.properties = properties
+
+    def calculate_neat_heat_power_out_W(self, t: float) -> float:
+        return -self.properties.power_getter(t=t)
