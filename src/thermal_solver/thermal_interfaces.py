@@ -45,28 +45,18 @@ class Node:
 
     def __init__(self, properties: NodeProperties):
         self.properties = properties
-        self.radiation_surfaces: list[RadiationSurface] = []
-        self.heat_sources: list[HeatSource] = []
+        self.components: list[Component] = []
         self.temperature: float = None
 
-    def add_radiation_surface(self, surface: RadiationSurface):
-        assert surface not in self.radiation_surfaces
-        self.radiation_surfaces.append(surface)
-        surface._assign_node(self)
-
-    def add_heat_source(self, source: HeatSource):
-        assert source not in self.heat_sources
-        self.heat_sources.append(source)
-        source._assign_node(self)
-
-    def iterate_components(self):
-        for component in self.radiation_surfaces + self.heat_sources:
-            yield component
+    def add_component(self, component: Component):
+        assert component not in self.components
+        self.components.append(component)
+        component._assign_node(self)
 
     def calculate_neat_heat_power_out_W(self, t: float) -> float:
         return sum([
             component.calculate_neat_heat_power_out_W(t=t)
-            for component in self.iterate_components()
+            for component in self.components
         ])
 
 
@@ -100,8 +90,6 @@ class RadiationSurfaceProperties:
 class ContactSurfaceProperties:
     area_m2: float  # [m2]
     conductivity_W_per_m2_per_K: float  # [W / (m2 * K)]
-    node_a: object
-    node_b: object
 
 
 @dataclass(kw_only=True)
@@ -122,10 +110,10 @@ class Component(abc.ABC):
 
     def _assign_node(self, node: Node):
         assert self.node is None, f'Component already assigned to node ({self.node})'
-        assert self in node.iterate_components(), (
+        assert self in node.components, (
             f'Incorrect use of internal method {self.__class__.__name__}.{_get_func_name_()}(): '
             f'Trying to assign node to component, but component not in Node.\n'
-            f'Use Node.add_radiation_surface() or Node.add_heat_source() instead.'
+            f'Use Node.add_component() instead.'
         )
         self.node: Node = node
 

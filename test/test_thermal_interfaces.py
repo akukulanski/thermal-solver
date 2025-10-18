@@ -110,7 +110,7 @@ def test_radiation_surface():
     )
     node = mock.MagicMock()
     node.temperature = 300
-    node.iterate_components.return_value = [surface]
+    node.components = [surface]
     surface._assign_node(node)
 
     with pytest.raises(AssertionError):
@@ -160,9 +160,9 @@ def test_radiation_surface():
         emission_spectrum=Spectrum.VISIBLE
     ))
     nodes = [mock.MagicMock() for _ in range(3)]
-    nodes[0].iterate_components.return_value = [other_surface_1]
-    nodes[1].iterate_components.return_value = [other_surface_2]
-    nodes[2].iterate_components.return_value = [other_surface_3]
+    nodes[0].components = [other_surface_1]
+    nodes[1].components = [other_surface_2]
+    nodes[2].components = [other_surface_3]
     other_surface_1._assign_node(nodes[0])
     other_surface_2._assign_node(nodes[1])
     other_surface_3._assign_node(nodes[2])
@@ -384,9 +384,9 @@ def test_node():
     heat_source_1 = HeatSource(properties=HeatSourceProperties(constant_power_W=100))
 
     # Add surfaces and heat sources to node
-    node.add_radiation_surface(surface_1)
-    node.add_radiation_surface(surface_2)
-    node.add_heat_source(heat_source_1)
+    node.add_component(surface_1)
+    node.add_component(surface_2)
+    node.add_component(heat_source_1)
 
     # Set the node temperature
     node.temperature = 350
