@@ -2,11 +2,15 @@ import numpy as np
 import pytest
 from unittest import mock
 
-from thermal_solver.thermal_interfaces import (
+from thermal_solver.constants import (
     STEFAN_BOLTZMANN_W_PER_M2_PER_K4,
     P_SOLAR_W_PER_M2,
+)
+from thermal_solver.vectors import (
     versor,
-    calculate_effective_area_factor,
+    rotate_around_axis,
+)
+from thermal_solver.thermal_interfaces import (
     NodeProperties,
     Node,
     RadiationSurfaceProperties,
@@ -17,6 +21,7 @@ from thermal_solver.thermal_interfaces import (
     Sun,
     ThermalSystem,
     SimpleSystemTwoNodes,
+    calculate_effective_area_factor,
 )
 
 def test_versor():
@@ -39,6 +44,10 @@ def test_calculate_effective_area_factor():
         orientation_a=[10, 0, 0], orientation_b=[10, 0, 0]
     ) == 0
 
+
+def test_rotate_around_axis():
+    assert all(np.isclose(rotate_around_axis([1, 0, 0], [0, 0, 1], np.pi / 2), [0, 1, 0]))
+    assert all(rotate_around_axis([1, 0, 0], [0, 0, 1], np.pi / 2, round_to=8) == [0, 1, 0])
 
 
 def test_node_properties():
@@ -179,9 +188,72 @@ def test_radiation_surface():
     assert surface.calculate_neat_heat_power_out_W(t=0) == pytest.approx(expected_heat_power_out_W - expected_heat_power_in_W)
 
 
-@pytest.mark.skip(reason='Test not implemented')
 def test_sun():
-    Sun
+
+    def get_position(t: float) -> np.ndarray:
+        """Start in [1, 0, 0] and rotate around z [0, 0, 1] at 360 deg / 24 hs"""
+        w = 2 * np.pi / 24 / 3600
+        return rotate_around_axis(
+            [1, 0, 0], axis=[0, 0, 1], angle_rad=w*t, round_to=6
+        )
+
+    sun = Sun(sun_vector_getter=get_position)
+    # NOTE: orientation = -position (to match criteria used for surfaces)
+    assert all(np.isclose(sun.get_orientation(t=0), [-1, 0, 0]))
+    assert all(np.isclose(sun.get_orientation(t=3 * 3600), [-1 / 2**.5, -1 / 2**.5, 0]))
+    assert all(np.isclose(sun.get_orientation(t=6 * 3600), [0, -1, 0]))
+    assert all(np.isclose(sun.get_orientation(t=12 * 3600), [+1, 0, 0]))
+    assert all(np.isclose(sun.get_orientation(t=18 * 3600), [0, +1, 0]))
+    assert all(np.isclose(sun.get_orientation(t=24 * 3600), [-1, 0, 0]))
+
+    assert sun.calculate_heat_transfered_W(
+        t=0,
+        area_exposed_m2=1,
+        orientation=[1, 0, 0],
+        absorptivity=0.2,
+    ) == pytest.approx(P_SOLAR_W_PER_M2 * 0.2)
+    assert sun.calculate_heat_transfered_W(
+        t=3 * 3600,
+        area_exposed_m2=1,
+        orientation=[1, 0, 0],
+        absorptivity=0.2,
+    ) == pytest.approx(P_SOLAR_W_PER_M2 * 0.2 / 2**.5)
+    assert sun.calculate_heat_transfered_W(
+        t=6 * 3600,
+        area_exposed_m2=1,
+        orientation=[1, 0, 0],
+        absorptivity=0.2,
+    ) == 0
+    assert sun.calculate_heat_transfered_W(
+        t=9 * 3600,
+        area_exposed_m2=1,
+        orientation=[1, 0, 0],
+        absorptivity=0.2,
+    ) == 0
+    assert sun.calculate_heat_transfered_W(
+        t=12 * 3600,
+        area_exposed_m2=1,
+        orientation=[1, 0, 0],
+        absorptivity=0.2,
+    ) == 0
+    assert sun.calculate_heat_transfered_W(
+        t=0,
+        area_exposed_m2=1,
+        orientation=[-1, 0, 0],
+        absorptivity=0.2,
+    ) == 0
+    assert sun.calculate_heat_transfered_W(
+        t=0,
+        area_exposed_m2=1,
+        orientation=[-1 / 2**.5, -1 / 2**.5, 0],
+        absorptivity=0.2,
+    ) == 0
+    assert sun.calculate_heat_transfered_W(
+        t=0,
+        area_exposed_m2=1,
+        orientation=[+1 / 2**.5, +1 / 2**.5, 0],
+        absorptivity=0.2,
+    ) == pytest.approx(P_SOLAR_W_PER_M2 * 0.2 / 2**.5)
 
 
 @pytest.mark.skip(reason='Test not implemented')

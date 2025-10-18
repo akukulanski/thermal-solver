@@ -4,22 +4,20 @@ from dataclasses import dataclass, field
 from enum import Enum, auto
 import numpy as np
 
+from .constants import (
+    STEFAN_BOLTZMANN_W_PER_M2_PER_K4,
+    P_SOLAR_W_PER_M2,
+)
+from .vectors import (
+    versor,
+)
 
-STEFAN_BOLTZMANN_W_PER_M2_PER_K4 = 5.670374419e-8 # [W / (m2 * K4)]
-P_SOLAR_W_PER_M2 = 1361 # [W / m2]
 
-
-def versor(x: np.array) -> np.array:
-    return x / np.linalg.norm(x)
-
-
-class ThermalSystem:
-
-    def __init__(self):
-        pass
-
-    def __call__(self, t, y, *args) -> list[float]:
-        raise NotImplementedError()
+def calculate_effective_area_factor(orientation_a, orientation_b) -> float:
+    """Return the dot procut between the two versors of the orientation of the
+    surfaces, inverted in sign (opposing for positive factor), and at least 0"""
+    v1, v2 = versor(orientation_a), versor(orientation_b)
+    return max(0, -np.dot(v1, v2))
 
 
 @dataclass(kw_only=True)
@@ -103,12 +101,6 @@ class RadiationInterfaceProperties:
     #     return RadiationInterfaceProperties(
     #         view_factor=self.view_factor * area / target_area_m2
     #     )
-
-def calculate_effective_area_factor(orientation_a, orientation_b) -> float:
-    """Return the dot procut between the two versors of the orientation of the
-    surfaces, inverted in sign (opposing for positive factor), and at least 0"""
-    v1, v2 = versor(orientation_a), versor(orientation_b)
-    return max(0, -np.dot(v1, v2))
 
 
 class RadiationSurface:
@@ -196,7 +188,6 @@ class Sun(RadiationSurface):
         absorptivity: float,
         # t,  # FIXME: add t everywhere! Or make global?
     ) -> float:
-        t = 0
         sun_orientation = self.get_orientation(t)
         effective_area_factor = calculate_effective_area_factor(
             sun_orientation, orientation
@@ -206,6 +197,35 @@ class Sun(RadiationSurface):
             * area_exposed_m2 * effective_area_factor
             * absorptivity
         )
+
+    def assign_node(self, *args, **kwargs):
+        raise NotImplementedError(f'Method {_get_func_name_()} not implemented for Sun!')
+
+    def add_input_interface(self, *args, **kwargs):
+        raise NotImplementedError(f'Method {_get_func_name_()} not implemented for Sun!')
+
+    def calculate_heat_power_in_W(self, *args, **kwargs):
+        raise NotImplementedError(f'Method {_get_func_name_()} not implemented for Sun!')
+
+    def calculate_heat_power_out_W(self, *args, **kwargs):
+        raise NotImplementedError(f'Method {_get_func_name_()} not implemented for Sun!')
+
+    def calculate_neat_heat_power_out_W(self, *args, **kwargs):
+        raise NotImplementedError(f'Method {_get_func_name_()} not implemented for Sun!')
+
+
+def _get_func_name_():
+    import inspect
+    return inspect.currentframe().f_back.f_code.co_name
+
+
+class ThermalSystem:
+
+    def __init__(self):
+        pass
+
+    def __call__(self, t, y, *args) -> list[float]:
+        raise NotImplementedError()
 
 
 class SimpleSystemTwoNodes(ThermalSystem):
