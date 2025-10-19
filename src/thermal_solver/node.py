@@ -33,7 +33,17 @@ class Node:
     def set_temperature_K(self, temperature_K: float):
         self.temperature = temperature_K
 
-    def equation_DT_dt(self, t: float) -> float:
+    def equation_dT_dt(self, t: float) -> float:
+        """Thermal equation:
+
+            dT/dt [K / s] = - 1 / C [W * s / K] * Q_out_neat [W]
+
+        where
+            * T: Temperature in [K]
+            * t: Time in [s]
+            * C: Thermal capacity in [W * s / K]
+            * Q_out_neat: Neat power out in [W]
+        """
         return (
             - (1 / self.properties.thermal_capacity_J_per_K)
             * self.calculate_neat_heat_power_out_W(t=t)

@@ -22,6 +22,8 @@ class SimpleSystemTwoNodes(ThermalSystem):
     def __init__(
         self,
     ):
+        super().__init__()
+
         self.node_radiator = Node(
             properties=NodeProperties(
                 mass_kg=10,
@@ -124,23 +126,8 @@ class SimpleSystemTwoNodes(ThermalSystem):
         self.node_solar_panels.add_component(solar_panel_xm)
         self.node_solar_panels.add_component(solar_panel_yp)
 
-    def __call__(self, t, y, *args) -> list[float]:
-        # FIXME: The node equation should be moved to the Node class.
-        T1, T2 = y
-        # First assign temperatures to nodes, so calculations of heat power out are correct.
-        self.node_radiator.temperature = T1
-        self.node_solar_panels.temperature = T2
-        # Equations:
-        # Eq_1:
-        #   dT1/dt [K / s] = - 1 / C1 [W * s / K] * Q1_out_neat [W]
-        # Eq_2:
-        #   dT2/dt [K / s] = - 1 / C2 [W * s / K] * Q2_out_neat [W]
-        equations = [
-            - (1 / node.properties.thermal_capacity_J_per_K) *
-            node.calculate_neat_heat_power_out_W(t=t)
-            for node in (self.node_radiator, self.node_solar_panels)
-        ]
-        return equations
+        self.add_node(node=self.node_radiator)
+        self.add_node(node=self.node_solar_panels)
 
 
 def run(
@@ -195,6 +182,7 @@ def main(sys_args=None):
                         help='Output filename')
     parser.add_argument('--show', action='store_true', help='Show image')
     args = parser.parse_args(sys_args)
+    args.output = os.path.abspath(args.output)
     run(
         show_fig=args.show,
         fig_filename=args.output,
