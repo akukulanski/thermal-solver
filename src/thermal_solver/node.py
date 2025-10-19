@@ -29,3 +29,12 @@ class Node:
             component.calculate_neat_heat_power_out_W(t=t)
             for component in self.components
         ])
+
+    def set_temperature_K(self, temperature_K: float):
+        self.temperature = temperature_K
+
+    def equation_DT_dt(self, t: float) -> float:
+        return (
+            - (1 / self.properties.thermal_capacity_J_per_K)
+            * self.calculate_neat_heat_power_out_W(t=t)
+        )

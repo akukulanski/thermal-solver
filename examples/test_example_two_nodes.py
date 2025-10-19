@@ -1,13 +1,17 @@
 import argparse
 import os
 
-from thermal_solver.thermal_interfaces import (
-    versor,
-    Node,
+from thermal_solver.node import Node
+from thermal_solver.vectors import versor
+from thermal_solver.properties import (
     NodeProperties,
-    RadiationSurface,
     RadiationSurfaceProperties,
     RadiationInterfaceProperties,
+)
+from thermal_solver.components import (
+    RadiationSurface,
+)
+from thermal_solver.lib import (
     Sun,
 )
 from thermal_solver.thermal_system import ThermalSystem
@@ -78,12 +82,12 @@ class SimpleSystemTwoNodes(ThermalSystem):
             ),
         )
 
-        solar_panel_xm.add_input_interface(
-            source=radiator,
-            properties=RadiationInterfaceProperties(
-                view_factor=1.0,
-            ),
-        )
+        # solar_panel_xm.add_input_interface(
+        #     source=radiator,
+        #     properties=RadiationInterfaceProperties(
+        #         view_factor=1.0,
+        #     ),
+        # )  # symmetic interface added automatically
         solar_panel_xm.add_input_interface(
             source=solar_panel_yp,
             properties=RadiationInterfaceProperties(
@@ -97,18 +101,18 @@ class SimpleSystemTwoNodes(ThermalSystem):
             ),
         )
 
-        solar_panel_yp.add_input_interface(
-            source=radiator,
-            properties=RadiationInterfaceProperties(
-                view_factor=1.0,
-            ),
-        )
-        solar_panel_yp.add_input_interface(
-            source=solar_panel_xm,
-            properties=RadiationInterfaceProperties(
-                view_factor=1.0,
-            ),
-        )
+        # solar_panel_yp.add_input_interface(
+        #     source=radiator,
+        #     properties=RadiationInterfaceProperties(
+        #         view_factor=1.0,
+        #     ),
+        # )  # symmetic interface added automatically
+        # solar_panel_yp.add_input_interface(
+        #     source=solar_panel_xm,
+        #     properties=RadiationInterfaceProperties(
+        #         view_factor=1.0,
+        #     ),
+        # )  # symmetic interface added automatically
         solar_panel_yp.add_input_interface(
             source=sun,
             properties=RadiationInterfaceProperties(
@@ -116,9 +120,9 @@ class SimpleSystemTwoNodes(ThermalSystem):
             ),
         )
 
-        self.node_radiator.add_radiation_surface(radiator)
-        self.node_solar_panels.add_radiation_surface(solar_panel_xm)
-        self.node_solar_panels.add_radiation_surface(solar_panel_yp)
+        self.node_radiator.add_component(radiator)
+        self.node_solar_panels.add_component(solar_panel_xm)
+        self.node_solar_panels.add_component(solar_panel_yp)
 
     def __call__(self, t, y, *args) -> list[float]:
         # FIXME: The node equation should be moved to the Node class.
