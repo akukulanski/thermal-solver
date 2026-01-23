@@ -163,3 +163,22 @@ def test_node():
         + 1  # heat_source_1
         + 1  # component_1 (component_2)
     )
+
+    # NOTE: incomplete draft. Dataframe with only one timestamp.
+    # TODO: decide how to dump the data of the multiple interfaces for each timestamp,
+    # to be able to later generate a plot "easily".
+    print('')
+    for _ in range(1):
+        for i, c in enumerate((
+            surface_1,
+            surface_2,
+            heat_source_1,
+            component_1,
+        )):
+            print(f'[iter {_}][component {i}] {c} ({str(c)})')
+
+    df = pd.DataFrame([
+        heat_flux_element_to_flat_dict(x) for x in heat_flux_elements
+    ])
+    print('')
+    print(df)
