@@ -7,11 +7,14 @@ from .components import (
 from .properties import (
     NodeProperties,
 )
+from .utils import NameGenerator
 
 
 class Node:
 
-    def __init__(self, properties: NodeProperties):
+    _name_prefix: str = 'node_'
+
+    def __init__(self, properties: NodeProperties, name: str = ''):
         self.properties = properties
         self.components: list[Component] = []
         # FIXME: temeprature should be a function to allow pass the time
@@ -19,6 +22,8 @@ class Node:
         # change according to the ODE, and for infinite-mass nodes that
         # remain independent and where temperature depends strictly on time.
         self.temperature: float = None
+        self.name = NameGenerator.register_or_create(
+            name, prefix=self._name_prefix)
 
     def add_component(self, component: Component):
         assert component not in self.components

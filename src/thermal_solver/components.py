@@ -35,8 +35,8 @@ __all__ = [
 
 @dataclass(kw_only=True)
 class HeatFluxElement:
-    dest: Component
-    source: Component
+    dest: str
+    source: str
     iface_properties: Any
     q_out_W: float
 
@@ -112,8 +112,8 @@ class RadiationSurface(Component):
     def get_input_heat_fluxes(self, t) -> list[HeatFluxElement]:
         return [
             HeatFluxElement(
-                dest=self,
-                source=source,
+                dest=self.name,
+                source=source.name,
                 iface_properties=iface_properties,
                 q_out_W=(-1) * source.calculate_heat_transfered_W(
                     t=t,
@@ -130,8 +130,8 @@ class RadiationSurface(Component):
         q_in_W = self.get_input_heat_fluxes(t=t)
         q_out_W = [
             HeatFluxElement(
-                dest=self,
-                source=NullComponent(),
+                dest=self.name,
+                source=NullComponent().name,
                 iface_properties=None,
                 q_out_W=self.calculate_emmited_heat_power_W(t=t),
             )
@@ -190,8 +190,8 @@ class HeatSource(Component):
     def get_heat_fluxes_W(self, t: float) -> list[HeatFluxElement]:
         return [
             HeatFluxElement(
-                dest=self,
-                source=self,  # or None?
+                dest=self.name,
+                source=NullComponent().name, # self.name,  # or None?
                 iface_properties=None,
                 q_out_W=-self.properties.power_getter(t=t),
             )
@@ -233,8 +233,8 @@ class ConductionComponent(Component):
         this_node_temp_K = self.node.temperature
         return [
             HeatFluxElement(
-                dest=self,
-                source=source,
+                dest=self.name,
+                source=source.name,
                 iface_properties=iface,
                 q_out_W=(this_node_temp_K - source.node.temperature) *
                 iface.conductance_W_per_K,

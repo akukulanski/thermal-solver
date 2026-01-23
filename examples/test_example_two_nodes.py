@@ -46,7 +46,8 @@ class SimpleSystemTwoNodes(ThermalSystem):
                 orientation=[1, 0, 0],  # +x
                 emissivity=0.8,
                 solar_absorptivity=0.2,  # white paint
-            )
+            ),
+            name='radiator'
         )
         solar_panel_xm = RadiationSurface(
             properties=RadiationSurfaceProperties(
@@ -54,7 +55,8 @@ class SimpleSystemTwoNodes(ThermalSystem):
                 orientation=[-1, 0, 0],  # -x
                 emissivity=0.9,
                 solar_absorptivity=0.9,
-            )
+            ),
+            name='panel_xm'
         )
         solar_panel_yp = RadiationSurface(
             properties=RadiationSurfaceProperties(
@@ -62,19 +64,20 @@ class SimpleSystemTwoNodes(ThermalSystem):
                 orientation=[0, 1, 0],  # +y
                 emissivity=0.9,
                 solar_absorptivity=0.9,
-            )
+            ),
+            name='panel_yp'
         )
 
         radiator.add_input_interface(
             source=solar_panel_xm,
             properties=RadiationInterfaceProperties(
-                view_factor=1.0,
+                view_factor=0.9,
             ),
         )
         radiator.add_input_interface(
             source=solar_panel_yp,
             properties=RadiationInterfaceProperties(
-                view_factor=1.0,
+                view_factor=0.9,
             ),
         )
         radiator.add_input_interface(
@@ -161,18 +164,15 @@ def run(
     t_eval = np.linspace(*t_span, 100)
     y_interp = sol.sol(t_eval)
 
-    fig = plt.figure()
-    plt.plot(t_eval, y_interp[0], label='T1')
-    plt.plot(t_eval, y_interp[1], label='T2')
-    plt.xlabel('t')
-    # plt.legend(['T1', 'T2'], shadow=True)
-    plt.legend(shadow=True)
-    plt.title('Thermal System')
-    if show_fig:
-        plt.show()
-    if fig_filename is not None:
-        os.makedirs(os.path.dirname(fig_filename), exist_ok=True)
-        fig.savefig(fig_filename)
+    from thermal_solver.plot import generate_plots
+    generate_plots(
+        system=system,
+        time_vector=t_eval,
+        y_vectors=y_interp,
+        y_names=['T1', 'T2'],
+        show=show_fig,
+        base_filename=fig_filename,
+    )
 
 
 def main(sys_args=None):
