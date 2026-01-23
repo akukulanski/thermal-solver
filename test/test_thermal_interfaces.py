@@ -573,16 +573,9 @@ def test_node():
     # Check Heat Flux elements
     heat_flux_elements = node.get_heat_fluxes_W(t=0)
 
-    df = pd.DataFrame([
-        heat_flux_element_to_flat_dict(x) for x in heat_flux_elements
-    ])
-
     assert len(heat_flux_elements) == (
         + 3  # surface_1 (sun, surface_2, emmited radiation)
         + 3  # surface_2 (sun, surface_1, emmited radiation)
         + 1  # heat_source_1
         + 1  # component_1 (component_2)
     )
-    # NOTE: incomplete draft. Dataframe with only one timestamp.
-    # TODO: decide how to dump the data of the multiple interfaces for each timestamp,
-    # to be able to later generate a plot "easily".
