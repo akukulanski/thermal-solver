@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from .components import (
     Component,
+    HeatFluxElement,
 )
 from .properties import (
     NodeProperties,
@@ -23,6 +24,13 @@ class Node:
         assert component not in self.components
         self.components.append(component)
         component._assign_node(self)
+
+    def get_heat_fluxes_W(self, t) -> list[HeatFluxElement]:
+        return [
+            heat_flux_element
+            for component in self.components
+            for heat_flux_element in component.get_heat_fluxes_W(t=t)
+        ]
 
     def calculate_neat_heat_power_out_W(self, t: float) -> float:
         return sum([

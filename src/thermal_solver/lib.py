@@ -27,28 +27,33 @@ __all__ = [
 
 class Sun(RadiationSurface):
 
+    _name: str = 'Sun'
+
     def __init__(self, sun_vector_getter: callable):
-        super().__init__(properties=RadiationSurfaceProperties(
-            area_m2=np.inf,
-            orientation=None,
-            emissivity=None,
-            solar_absorptivity=None,
-            emission_spectrum=Spectrum.VISIBLE,
-        ))
+        super().__init__(
+            name=self._name,
+            properties=RadiationSurfaceProperties(
+                area_m2=np.inf,
+                orientation=None,
+                emissivity=None,
+                solar_absorptivity=None,
+                emission_spectrum=Spectrum.VISIBLE,
+            )
+        )
         self.sun_vector_getter = sun_vector_getter
 
     def get_orientation(self, t: float = 0) -> np.ndarray | list:
         """Sun vector opposed in sign"""
-        return -np.array(self.sun_vector_getter(t))
+        return -np.array(self.sun_vector_getter(t=t))
 
     def calculate_heat_transfered_W(
         self,
         t: float,
         area_exposed_m2: float,
-        orientation: np.ndarray,
+        orientation: np.ndarray | list,
         absorptivity: float,
     ) -> float:
-        sun_orientation = self.get_orientation(t)
+        sun_orientation = self.get_orientation(t=t)
         effective_area_factor = calculate_effective_area_factor(
             sun_orientation, orientation
         )
@@ -66,15 +71,15 @@ class Sun(RadiationSurface):
         """Input interfaces for the Sun are ignored"""
         pass
 
-    def calculate_heat_power_in_W(self, *args, **kwargs):
-        raise NotImplementedError(
-            f'Method {_get_func_name_()} not implemented for Sun!')
-
     def calculate_heat_power_out_W(self, *args, **kwargs):
         raise NotImplementedError(
             f'Method {_get_func_name_()} not implemented for Sun!')
 
     def calculate_neat_heat_power_out_W(self, *args, **kwargs):
+        raise NotImplementedError(
+            f'Method {_get_func_name_()} not implemented for Sun!')
+
+    def get_heat_fluxes_W(self, t) -> list[dict]:
         raise NotImplementedError(
             f'Method {_get_func_name_()} not implemented for Sun!')
 

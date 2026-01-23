@@ -6,9 +6,12 @@ def versor(x: np.array) -> np.array:
     return x / np.linalg.norm(x)
 
 
-def get_rotation_matrix_around_axis(axis: np.ndarray, angle_rad: float) -> np.ndarray:
+def get_rotation_matrix_around_axis(
+    axis: np.ndarray | list,
+    angle_rad: float
+) -> np.ndarray:
     # Normalize the axis
-    axis = axis / np.linalg.norm(axis)
+    axis = np.array(axis) / np.linalg.norm(axis)
     # Create a rotation object from axis-angle
     r = R.from_rotvec(axis * angle_rad)
     # Get the rotation matrix
@@ -16,7 +19,12 @@ def get_rotation_matrix_around_axis(axis: np.ndarray, angle_rad: float) -> np.nd
     return rotation_matrix
 
 
-def rotate_around_axis(vector: np.ndarray, axis: np.ndarray, angle_rad: float, round_to: int = None) -> np.ndarray:
+def rotate_around_axis(
+    vector: np.ndarray | list,
+    axis: np.ndarray | list,
+    angle_rad: float,
+    round_to: int | None = None
+) -> np.ndarray:
     rotation_matrix = get_rotation_matrix_around_axis(axis, angle_rad)
     rotated_vector = rotation_matrix @ vector
     if round_to is not None:

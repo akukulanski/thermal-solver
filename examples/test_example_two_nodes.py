@@ -24,13 +24,13 @@ class SimpleSystemTwoNodes(ThermalSystem):
     ):
         super().__init__()
 
-        self.node_radiator = Node(
+        node_radiator = Node(
             properties=NodeProperties(
                 mass_kg=10,
                 specific_heat_J_per_kg_per_K=444,
             )
         )
-        self.node_solar_panels = Node(
+        node_solar_panels = Node(
             properties=NodeProperties(
                 mass_kg=20,
                 specific_heat_J_per_kg_per_K=444,
@@ -122,12 +122,12 @@ class SimpleSystemTwoNodes(ThermalSystem):
             ),
         )
 
-        self.node_radiator.add_component(radiator)
-        self.node_solar_panels.add_component(solar_panel_xm)
-        self.node_solar_panels.add_component(solar_panel_yp)
+        node_radiator.add_component(radiator)
+        node_solar_panels.add_component(solar_panel_xm)
+        node_solar_panels.add_component(solar_panel_yp)
 
-        self.add_node(node=self.node_radiator)
-        self.add_node(node=self.node_solar_panels)
+        self.add_node(node=node_radiator)
+        self.add_node(node=node_solar_panels)
 
 
 def run(

@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import pytest
 from unittest import mock
 
@@ -6,6 +7,7 @@ from thermal_solver.components import (
     HeatSource,
     RadiationSurface,
     ConductionComponent,
+    HeatFluxElement,
 )
 from thermal_solver.constants import (
     STEFAN_BOLTZMANN_W_PER_M2_PER_K4,
@@ -29,12 +31,28 @@ from thermal_solver.vectors import (
 )
 
 
+def setup_function():
+    from thermal_solver.utils import NameGenerator
+    NameGenerator._clear()
+
+
 def get_sun_position(t: float) -> np.ndarray:
     """Start in [1, 0, 0] and rotate around z [0, 0, 1] at 360 deg / 24 hs"""
     w = 2 * np.pi / 24 / 3600
     return rotate_around_axis(
         [1, 0, 0], axis=[0, 0, 1], angle_rad=w*t, round_to=6
     )
+
+
+def heat_flux_element_to_flat_dict(element: HeatFluxElement) -> dict:
+    return {
+        # 'dest_node': element.dest.node,  # Node id and Node name?
+        'dest_component': element.dest.name,  # Component id and Component name?
+        # 'source_node': element.source.node, # Node id and Node name?
+        'source_component': element.source.name,  # Component id and Component name?
+        'iface_properties': element.iface_properties,
+        'q_out_W': element.q_out_W,
+    }
 
 
 def test_versor():
@@ -110,16 +128,13 @@ def test_radiation_surface():
             orientation=[1, 0, 0],
             emissivity=0.7,
             solar_absorptivity=0.2,
-        )
+        ),
+        name='abc',
     )
     node = mock.MagicMock()
     node.temperature = 300
     node.components = [surface]
     surface._assign_node(node)
-
-    with pytest.raises(AssertionError):
-        # Node already assigned
-        surface._assign_node(node)
 
     expected_heat_power_out_W = (
         STEFAN_BOLTZMANN_W_PER_M2_PER_K4
@@ -127,9 +142,15 @@ def test_radiation_surface():
         * 2
         * 300**4
     )
-    assert surface.calculate_heat_power_out_W(
+
+    with pytest.raises(AssertionError):
+        # Node already assigned
+        surface._assign_node(node)
+
+    assert surface.name == 'abc'
+    assert surface.calculate_emmited_heat_power_W(
         t=0) == pytest.approx(expected_heat_power_out_W)
-    assert surface.calculate_heat_power_in_W(t=0) == 0
+    assert surface.calculate_received_heat_power_W(t=0) == 0
     assert surface.calculate_neat_heat_power_out_W(
         t=0) == pytest.approx(expected_heat_power_out_W)
 
@@ -148,21 +169,30 @@ def test_radiation_surface():
         t=0, area_exposed_m2=3, orientation=[-1, -1, 0], absorptivity=0.4
     ) == pytest.approx(STEFAN_BOLTZMANN_W_PER_M2_PER_K4 * 0.7 * 3 * 1 * 0.4 / 2**.5 * 300**4)
 
-    other_surface_1 = RadiationSurface(properties=RadiationSurfaceProperties(
-        area_m2=4, orientation=[-1, 0, 0],
-        emissivity=0.8, solar_absorptivity=0.1,
-        emission_spectrum=Spectrum.IR
-    ))
-    other_surface_2 = RadiationSurface(properties=RadiationSurfaceProperties(
-        area_m2=7, orientation=[-1 / 2**.5, -1 / 2**.5, 0],
-        emissivity=0.4, solar_absorptivity=0.2,
-        emission_spectrum=Spectrum.VISIBLE
-    ))
-    other_surface_3 = RadiationSurface(properties=RadiationSurfaceProperties(
-        area_m2=9, orientation=[1 / 2**.5, 1 / 2**.5, 0],
-        emissivity=0.4, solar_absorptivity=0.2,
-        emission_spectrum=Spectrum.VISIBLE
-    ))
+    other_surface_1 = RadiationSurface(
+        properties=RadiationSurfaceProperties(
+            area_m2=4, orientation=[-1, 0, 0],
+            emissivity=0.8, solar_absorptivity=0.1,
+            emission_spectrum=Spectrum.IR
+        ),
+        name='a',
+    )
+    other_surface_2 = RadiationSurface(
+        properties=RadiationSurfaceProperties(
+            area_m2=7, orientation=[-1 / 2**.5, -1 / 2**.5, 0],
+            emissivity=0.4, solar_absorptivity=0.2,
+            emission_spectrum=Spectrum.VISIBLE
+        ),
+        name='b',
+    )
+    other_surface_3 = RadiationSurface(
+        properties=RadiationSurfaceProperties(
+            area_m2=9, orientation=[1 / 2**.5, 1 / 2**.5, 0],
+            emissivity=0.4, solar_absorptivity=0.2,
+            emission_spectrum=Spectrum.VISIBLE
+        ),
+        name='c',
+    )
     nodes = [mock.MagicMock() for _ in range(3)]
     nodes[0].components = [other_surface_1]
     nodes[1].components = [other_surface_2]
@@ -231,7 +261,7 @@ def test_radiation_surface():
             0
         )
     )
-    assert surface.calculate_heat_power_in_W(
+    assert surface.calculate_received_heat_power_W(
         t=0) == pytest.approx(expected_heat_power_in_W)
     assert surface.calculate_neat_heat_power_out_W(t=0) == pytest.approx(
         expected_heat_power_out_W - expected_heat_power_in_W)
@@ -240,6 +270,7 @@ def test_radiation_surface():
 def test_sun():
 
     sun = Sun(sun_vector_getter=get_sun_position)
+    assert sun.name == 'Sun'
     # NOTE: orientation = -position (to match criteria used for surfaces)
     assert all(np.isclose(sun.get_orientation(t=0), [-1, 0, 0]))
     assert all(np.isclose(sun.get_orientation(
@@ -303,19 +334,23 @@ def test_sun():
             area_m2=3, orientation=[1, 0, 0],
             emissivity=0.5, solar_absorptivity=0.2,
             # emission_spectrum=
-        )
+        ),
+        name='a',
     )
     surface.add_input_interface(sun, properties=RadiationInterfaceProperties(
         view_factor=0.9,
     ))
-    assert surface.calculate_heat_power_in_W(t=0) == pytest.approx(
+    assert surface.calculate_received_heat_power_W(t=0) == pytest.approx(
+        sum(-x.q_out_W for x in surface.get_input_heat_fluxes(t=0))
+    )
+    assert sum(-x.q_out_W for x in surface.get_input_heat_fluxes(t=0)) == pytest.approx(
         P_SOLAR_W_PER_M2
         * 3  # area
         * 0.9  # view factor
         * 0.2  # solar_absorptivity
         * 1  # vectors aligned
     )
-    assert surface.calculate_heat_power_in_W(t=6 * 3600) == 0
+    assert sum(x.q_out_W for x in surface.get_input_heat_fluxes(t=6 * 3600)) == 0
 
 
 def test_heat_source_properties():
@@ -335,13 +370,24 @@ def test_heat_source_properties():
 
 
 def test_heat_source():
-    source = HeatSource(properties=HeatSourceProperties(constant_power_W=0))
+    source = HeatSource(
+        properties=HeatSourceProperties(constant_power_W=0),
+        name='src_a'
+    )
+    assert source.name == 'src_a'
     assert source.calculate_neat_heat_power_out_W(t=0) == 0
-    source = HeatSource(properties=HeatSourceProperties(constant_power_W=3))
+    source = HeatSource(
+        properties=HeatSourceProperties(constant_power_W=3),
+        name='src_b'
+    )
+    assert source.name == 'src_b'
     assert source.calculate_neat_heat_power_out_W(
         t=0) == -3  # heat source, power out is negative
-    source = HeatSource(properties=HeatSourceProperties(
-        power_getter=lambda t: 2 * t))
+    source = HeatSource(
+        properties=HeatSourceProperties(power_getter=lambda t: 2 * t),
+        name='src_c'
+    )
+    assert source.name == 'src_c'
     assert source.calculate_neat_heat_power_out_W(t=0) == 0
     assert source.calculate_neat_heat_power_out_W(
         t=3) == -6  # heat source, power out is negative
@@ -363,9 +409,12 @@ def test_conduction_interface_properties():
 
 
 def test_conduction_component():
-    component_1 = ConductionComponent(properties=ConductionProperties())
-    component_2 = ConductionComponent(properties=ConductionProperties())
-    component_3 = ConductionComponent(properties=ConductionProperties())
+    component_1 = ConductionComponent(
+        properties=ConductionProperties(), name='a')
+    component_2 = ConductionComponent(
+        properties=ConductionProperties(), name='b')
+    component_3 = ConductionComponent(
+        properties=ConductionProperties(), name='c')
     component_1.add_input_interface(
         source=component_2,
         properties=ConductionInterfaceProperties(conductance_W_per_K=10),
@@ -375,6 +424,9 @@ def test_conduction_component():
         properties=ConductionInterfaceProperties(conductance_W_per_K=20),
         add_symmetric_interface=False,
     )
+    assert component_1.name == 'a'
+    assert component_2.name == 'b'
+    assert component_3.name == 'c'
     assert component_1.get_source_interface(
         component_2).conductance_W_per_K == 10
     assert component_2.get_source_interface(
@@ -423,14 +475,16 @@ def test_node():
             area_m2=3, orientation=[1, 0, 0],
             emissivity=0.5, solar_absorptivity=0.25,
             emission_spectrum=Spectrum.IR,
-        )
+        ),
+        name='surface_1'
     )
     surface_2 = RadiationSurface(
         properties=RadiationSurfaceProperties(
             area_m2=8, orientation=[-1 / 2**.5, -1 / 2**.5, 0],
             emissivity=0.33, solar_absorptivity=0.3,
             emission_spectrum=Spectrum.IR,
-        )
+        ),
+        name='surface_2'
     )
 
     # Create sun
@@ -449,11 +503,17 @@ def test_node():
 
     # Create heat source
     heat_source_1 = HeatSource(
-        properties=HeatSourceProperties(constant_power_W=100))
+        properties=HeatSourceProperties(constant_power_W=100),
+        name='heat_source_1'
+    )
 
     # Create conduction components
-    component_1 = ConductionComponent(properties=ConductionProperties())
-    component_2 = ConductionComponent(properties=ConductionProperties())
+    component_1 = ConductionComponent(
+        properties=ConductionProperties(), name='component_1'
+    )
+    component_2 = ConductionComponent(
+        properties=ConductionProperties(), name='component_2'
+    )
     component_1.add_input_interface(
         source=component_2,
         properties=ConductionInterfaceProperties(conductance_W_per_K=10),
@@ -479,22 +539,50 @@ def test_node():
             + component_1.calculate_neat_heat_power_out_W(t=t)
         )
         assert surface_1.calculate_neat_heat_power_out_W(t=t) == pytest.approx(
-            surface_1.calculate_heat_power_out_W(t=t)
-            - surface_1.calculate_heat_power_in_W(t=t)
+            surface_1.calculate_emmited_heat_power_W(t=t)
+            - surface_1.calculate_received_heat_power_W(t=t)
         )
         assert surface_2.calculate_neat_heat_power_out_W(t=t) == pytest.approx(
-            surface_2.calculate_heat_power_out_W(t=t)
-            - surface_2.calculate_heat_power_in_W(t=t)
+            surface_2.calculate_emmited_heat_power_W(t=t)
+            - surface_2.calculate_received_heat_power_W(t=t)
         )
-        assert surface_1.calculate_heat_power_in_W(t=t) == pytest.approx(
-            sun.calculate_heat_transfered_W(t=t, area_exposed_m2=3, orientation=[
-                                            1, 0, 0], absorptivity=0.25)
-            + surface_2.calculate_heat_transfered_W(
-                t=t, area_exposed_m2=3*1, orientation=[1, 0, 0], absorptivity=0.5)
-        )
-        assert surface_2.calculate_heat_power_in_W(t=t) == pytest.approx(
+        assert surface_1.calculate_received_heat_power_W(t=t) == pytest.approx(
             sun.calculate_heat_transfered_W(
-                t=t, area_exposed_m2=8, orientation=[-1 / 2**.5, -1 / 2**.5, 0], absorptivity=0.3)
-            + surface_1.calculate_heat_transfered_W(
-                t=t, area_exposed_m2=8*3/8, orientation=[-1 / 2**.5, -1 / 2**.5, 0], absorptivity=0.33)
+                t=t,
+                area_exposed_m2=3,
+                orientation=[1, 0, 0],
+                absorptivity=0.25
+            ) + surface_2.calculate_heat_transfered_W(
+                t=t, area_exposed_m2=3*1, orientation=[1, 0, 0], absorptivity=0.5
+            )
         )
+        assert surface_2.calculate_received_heat_power_W(t=t) == pytest.approx(
+            sun.calculate_heat_transfered_W(
+                t=t,
+                area_exposed_m2=8,
+                orientation=[-1 / 2**.5, -1 / 2**.5, 0],
+                absorptivity=0.3
+            ) + surface_1.calculate_heat_transfered_W(
+                t=t,
+                area_exposed_m2=8*3/8,
+                orientation=[-1 / 2**.5, -1 / 2**.5, 0],
+                absorptivity=0.33
+            )
+        )
+
+    # Check Heat Flux elements
+    heat_flux_elements = node.get_heat_fluxes_W(t=0)
+
+    df = pd.DataFrame([
+        heat_flux_element_to_flat_dict(x) for x in heat_flux_elements
+    ])
+
+    assert len(heat_flux_elements) == (
+        + 3  # surface_1 (sun, surface_2, emmited radiation)
+        + 3  # surface_2 (sun, surface_1, emmited radiation)
+        + 1  # heat_source_1
+        + 1  # component_1 (component_2)
+    )
+    # NOTE: incomplete draft. Dataframe with only one timestamp.
+    # TODO: decide how to dump the data of the multiple interfaces for each timestamp,
+    # to be able to later generate a plot "easily".
