@@ -1,3 +1,4 @@
+from thermal_solver.node import Node
 import math
 import matplotlib
 import matplotlib.pyplot as plt
@@ -6,10 +7,8 @@ import os
 import pandas as pd
 matplotlib.use('qtagg')
 
-from thermal_solver.node import Node
 
-
-def match_label_color(axes):
+def match_label_color_(axes):
 
     # After plotting, iterate through lines to match colors
     lines = [line for ax in axes.flatten() for line in ax.get_lines()]
@@ -26,6 +25,30 @@ def match_label_color(axes):
         else:
             # If new label, store its color
             defined_labels[label] = line.get_color()
+
+
+def match_label_color(axes, cmap=None):
+
+    # After plotting, iterate through lines to match colors
+    lines = [line for ax in axes.flatten() for line in ax.get_lines()]
+
+    n_labels = len(set([line.get_label() for line in lines]))
+    color_iter = iter(cmap(np.linspace(0, 1, n_labels))) if cmap else None
+
+    # Keep track of labels that already have a defined color
+    defined_labels = {}
+
+    for line in lines:
+        label = line.get_label()
+        # If new label, store its color
+        if label not in defined_labels:
+            defined_labels[label] = next(
+                color_iter) if color_iter else line.get_color()
+
+        line.set_color(defined_labels[label])
+
+        # Hide the duplicate label in the legend by prepending an underscore
+        # line.set_label(f"_{label}")
 
 
 def generate_plot_temperatures(
@@ -62,52 +85,67 @@ def plot_nodes_and_components(
     n_nodes = len(nodes)
     n_cols = 2
     n_rows = int(math.ceil(n_nodes / n_cols))
-    fig, axes = plt.subplots(n_rows, n_cols, figsize=(12, n_rows * 3), sharey=True)
+    fig, axes = plt.subplots(
+        n_rows, n_cols, figsize=(12, n_rows * 3), sharey=True)
     axes = np.atleast_1d(axes)
     fig.suptitle('Heat Flux Out by Node')
 
     n_components = len([c for n in nodes for c in n.components])
     n_rows_comp = int(math.ceil(n_components / n_cols))
-    fig_comp, axes_comp = plt.subplots(n_rows_comp, n_cols, figsize=(12, n_rows_comp * 3), sharey=True)
+    fig_comp, axes_comp = plt.subplots(
+        n_rows_comp, n_cols, figsize=(12, n_rows_comp * 3), sharey=True)
     axes_comp = np.atleast_1d(axes_comp)
     fig_comp.suptitle('Heat Flux Out by Component')
     comp_id = 0
 
     for i, node in enumerate(nodes):
         node_q_out = pd.DataFrame([
-            pd.DataFrame(node.get_heat_fluxes_W(t)).groupby('dest')['q_out_W'].sum().to_dict()
+            pd.DataFrame(node.get_heat_fluxes_W(t)).groupby(
+                'dest')['q_out_W'].sum().to_dict()
             for t in time_vector
         ], index=time_vector)
 
         ax = axes.flatten()[i]
         node_q_out.plot(ax=ax)
-        node_q_out.sum(axis=1).plot(ax=ax, style='--', label='Total')
+        node_q_out.sum(axis=1).plot(
+            ax=ax, style='--', label='Total', dashes=[3, 3], lw=3, alpha=0.5
+        )
         ax.grid(True)
-        ax.legend()
+        # ax.legend()
         ax.set_xlabel('Time [s]')
         ax.set_ylabel('Q_out [W]')
         ax.set_title(f'Node: {node.name}')
 
         for j, comp_name in enumerate(pd.DataFrame(node.get_heat_fluxes_W(t=0))['dest'].unique()):
-            df_vs_t = [pd.DataFrame(node.get_heat_fluxes_W(t)) for t in time_vector]
+            df_vs_t = [pd.DataFrame(node.get_heat_fluxes_W(t))
+                       for t in time_vector]
             comp_df = pd.DataFrame([
-                df_vs_t[k][df_vs_t[i]['dest'] == comp_name].groupby('source')['q_out_W'].sum().to_dict()
+                df_vs_t[k][df_vs_t[i]['dest'] == comp_name].groupby(
+                    'source')['q_out_W'].sum().to_dict()
                 for k in range(len(df_vs_t))
             ], index=time_vector)
 
             ax = axes_comp.flatten()[comp_id]
             comp_id += 1
             comp_df.plot(ax=ax)
-            comp_df.sum(axis=1).plot(ax=ax, style='--', label='Total')
+            comp_df.sum(axis=1).plot(
+                ax=ax, style='--', label='Total', dashes=[3, 3], lw=3, alpha=0.5
+            )
             ax.grid(True)
-            ax.legend()
+            # ax.legend()
             ax.set_xlabel('Time [s]')
             ax.set_ylabel('Q_out [W]')
             ax.set_title(f'Node: {node.name} - Component: {comp_name}')
 
-        match_label_color(axes_comp)
+        match_label_color(axes_comp, cmap=plt.cm.rainbow)
 
-    match_label_color(axes)
+    match_label_color(axes, cmap=plt.cm.rainbow)
+
+    for ax in axes.flatten():
+        ax.legend()
+
+    for ax in axes_comp.flatten():
+        ax.legend()
 
     if show:
         plt.show()
@@ -119,7 +157,6 @@ def plot_nodes_and_components(
         fig_comp.savefig(filename_components)
 
     return ((fig, axes), (fig_comp, axes_comp))
-
 
 
 def generate_plots(
@@ -148,4 +185,3 @@ def generate_plots(
 
     if show:
         plt.show()
-

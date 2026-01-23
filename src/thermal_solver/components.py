@@ -191,7 +191,7 @@ class HeatSource(Component):
         return [
             HeatFluxElement(
                 dest=self.name,
-                source=NullComponent().name, # self.name,  # or None?
+                source=NullComponent().name,  # self.name or NullComponent().name?
                 iface_properties=None,
                 q_out_W=-self.properties.power_getter(t=t),
             )
