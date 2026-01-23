@@ -11,7 +11,6 @@ from .components import (
 from .node import Node
 from .utils import (
     _get_func_name_,
-    calculate_effective_area_factor,
 )
 from .properties import (
     Spectrum,
@@ -54,7 +53,7 @@ class Sun(RadiationSurface):
         absorptivity: float,
     ) -> float:
         sun_orientation = self.get_orientation(t=t)
-        effective_area_factor = calculate_effective_area_factor(
+        effective_area_factor = RadiationSurface.calculate_effective_area_factor(
             sun_orientation, orientation
         )
         return (

@@ -2,8 +2,8 @@ import numpy as np
 from scipy.spatial.transform import Rotation as R
 
 
-def versor(x: np.array) -> np.array:
-    return x / np.linalg.norm(x)
+def versor(x: np.ndarray | list) -> np.ndarray:
+    return np.array(x) / np.linalg.norm(x)
 
 
 def get_rotation_matrix_around_axis(

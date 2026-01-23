@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import abc
-from dataclasses import dataclass, field, asdict
+from dataclasses import dataclass, asdict
 import numpy as np
 from typing import TYPE_CHECKING, Any
 
@@ -17,9 +17,9 @@ from .properties import (
 )
 from .utils import (
     _get_func_name_,
-    calculate_effective_area_factor,
     NameGenerator,
 )
+from .vectors import versor
 
 if TYPE_CHECKING:
     from .node import Node
@@ -46,10 +46,12 @@ class HeatFluxElement:
 
 class Component(abc.ABC):
 
+    _name_prefix: str = 'component_'
+
     def __init__(self, *, name: str = ''):
         self.node: Node | None = None
         self.name = NameGenerator.register_or_create(
-            name, prefix=f'component_')
+            name, prefix=self._name_prefix)
 
     def _assign_node(self, node: Node):
         assert self.node is None, f'Component already assigned to node ({self.node})'
@@ -72,6 +74,8 @@ class Component(abc.ABC):
 
 
 class RadiationSurface(Component):
+
+    _name_prefix: str = 'radiation_surface_'
 
     def __init__(self, properties: RadiationSurfaceProperties, *, name: str = ''):
         super().__init__(name=name)
@@ -141,7 +145,7 @@ class RadiationSurface(Component):
         orientation: np.ndarray | list,
         absorptivity: float,
     ) -> float:
-        effective_area_factor = calculate_effective_area_factor(
+        effective_area_factor = RadiationSurface.calculate_effective_area_factor(
             self.properties.orientation, orientation
         )
         return (
@@ -164,8 +168,20 @@ class RadiationSurface(Component):
     def calculate_received_heat_power_W(self, t: float) -> float:
         return sum(-x.q_out_W for x in self.get_input_heat_fluxes(t=t))
 
+    @classmethod
+    def calculate_effective_area_factor(
+        cls, orientation_a: np.ndarray | list, orientation_b: np.ndarray | list
+    ) -> float:
+        """Return the dot procut between the two versors of the orientation of the
+        surfaces, inverted in sign (opposing for positive factor), and at least 0"""
+        v1, v2 = versor(np.array(orientation_a)), versor(
+            np.array(orientation_b))
+        return max(0, -np.dot(v1, v2))
+
 
 class HeatSource(Component):
+
+    _name_prefix: str = 'heat_source_'
 
     def __init__(self, properties: HeatSourceProperties, *, name: str = ''):
         super().__init__(name=name)
@@ -183,6 +199,8 @@ class HeatSource(Component):
 
 
 class ConductionComponent(Component):
+
+    _name_prefix: str = 'conduction_component_'
 
     def __init__(self, properties: ConductionProperties, *, name: str = ''):
         super().__init__(name=name)
