@@ -130,7 +130,8 @@ def run(
     from scipy.integrate import solve_ivp
     matplotlib.use('qtagg')
 
-    from thermal_solver.plot import generate_plots, export_data
+    from thermal_solver.results import SimResults
+    from thermal_solver.export import generate_plots, export_data
 
     system = SimpleSystemTwoNodes()
 
@@ -162,8 +163,26 @@ def run(
     if output_dir:
         os.makedirs(output_dir, exist_ok=True)
 
-    generate_plots(
+    sim_results = SimResults(
         system=system,
+        time_vector=t_eval,
+        y_vectors=y_interp,
+    )
+    print('--- Temperature DF ---')
+    print(sim_results.get_temperature_df())
+    print('')
+    print(f'--- Nodes DFs ---')
+    print(sim_results.get_nodes_dfs())
+    print('')
+    for node in system.nodes:
+        for component in node.components:
+            print(f'--- Node {node.name} - Compoennt {component.name} DF ---')
+            print(sim_results.get_component_df(component))
+
+    sim_results.df_consistency_check()
+
+    generate_plots(
+        sim_results=sim_results,
         time_vector=t_eval,
         y_vectors=y_interp,
         y_names=[f'T_{n.name}' for n in system.nodes],
@@ -173,9 +192,7 @@ def run(
     print(f'output_dir={output_dir}')
     if output_dir:
         export_data(
-            system=system,
-            time_vector=t_eval,
-            y_vectors=y_interp,
+            sim_results=sim_results,
             output_dir=output_dir,
         )
 

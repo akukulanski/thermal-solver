@@ -1,11 +1,9 @@
-from thermal_solver.components import Component
-from thermal_solver.node import Node
+from .results import SimResults
 import math
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-import pandas as pd
 matplotlib.use('qtagg')
 
 
@@ -77,67 +75,38 @@ def generate_plot_temperatures(
     return fig
 
 
-def get_node_q_out_df(node: Node, time_vector) -> pd.DataFrame:
-    raise NotImplementedError(f"WARNING: wrong implementation. Temperature not updated!")
-    return pd.DataFrame([
-        pd.DataFrame(node.get_heat_fluxes_W(t)).groupby(
-            'dest')['q_out_W'].sum().to_dict()
-        for t in time_vector
-    ], index=time_vector)
-
-
-def get_node_components_q_out_df(node: Node, time_vector) -> dict:
-    raise NotImplementedError(f"WARNING: wrong implementation. Temperature not updated!")
-    dfs = {}
-    for j, comp_name in enumerate(pd.DataFrame(node.get_heat_fluxes_W(t=0))['dest'].unique()):
-        df_vs_t = [pd.DataFrame(node.get_heat_fluxes_W(t))
-                    for t in time_vector]
-        comp_df = pd.DataFrame([
-            df_vs_t[k][df_vs_t[i]['dest'] == comp_name].groupby(
-                'source')['q_out_W'].sum().to_dict()
-            for k in range(len(df_vs_t))
-        ], index=time_vector)
-        dfs[comp_name] = comp_df
-    return dfs
-
-
-
-def get_component_q_out_df(component: Component, time_vector) -> pd.DataFrame:
-    raise NotImplementedError(f"WARNING: wrong implementation. Temperature not updated!")
-    df_vs_t = [pd.DataFrame(component.get_heat_fluxes_W(t)) for t in time_vector]
-    comp_df = pd.DataFrame([
-        df_vs_t[k].groupby('source')['q_out_W'].sum().to_dict()
-        for k in range(len(df_vs_t))
-    ], index=time_vector)
-    return comp_df
-
-
 def plot_nodes_and_components(
-    nodes: list[Node],
-    time_vector: np.ndarray,
+    sim_results: SimResults,
     show: bool,
     base_filename: str | None,
 ):
-    print(f"WARNING: wrong implementation. Temperature not updated!")
-    return
+    nodes = sim_results.system.nodes
     n_nodes = len(nodes)
-    n_cols = 2
+    n_cols = 1
     n_rows = int(math.ceil(n_nodes / n_cols))
     fig, axes = plt.subplots(
-        n_rows, n_cols, figsize=(12, n_rows * 3), sharey=True)
+        n_rows, n_cols, figsize=(8, n_rows * 4), sharey=True, sharex=True)
+    fig.subplots_adjust(
+        left=0.1, right=0.9, bottom=0.1, top=0.9, wspace=0.2, hspace=0.3
+    )
     axes = np.atleast_1d(axes)
     fig.suptitle('Heat Flux Out by Node')
 
     n_components = len([c for n in nodes for c in n.components])
     n_rows_comp = int(math.ceil(n_components / n_cols))
     fig_comp, axes_comp = plt.subplots(
-        n_rows_comp, n_cols, figsize=(12, n_rows_comp * 3), sharey=True)
+        n_rows_comp, n_cols, figsize=(8, n_rows_comp * 4), sharey=True, sharex=True)
+    fig_comp.subplots_adjust(
+        left=0.1, right=0.9, bottom=0.1, top=0.9, wspace=0.2, hspace=0.3
+    )
     axes_comp = np.atleast_1d(axes_comp)
     fig_comp.suptitle('Heat Flux Out by Component')
     comp_id = 0
 
+    nodes_df = sim_results.get_nodes_dfs()
+
     for i, node in enumerate(nodes):
-        node_q_out_df = get_node_q_out_df(node, time_vector)
+        node_q_out_df = nodes_df[i]
 
         ax = axes.flatten()[i]
         node_q_out_df.plot(ax=ax)
@@ -150,14 +119,8 @@ def plot_nodes_and_components(
         ax.set_ylabel('Q_out [W]')
         ax.set_title(f'Node: {node.name}')
 
-        for j, comp_name in enumerate(pd.DataFrame(node.get_heat_fluxes_W(t=0))['dest'].unique()):
-            df_vs_t = [pd.DataFrame(node.get_heat_fluxes_W(t))
-                       for t in time_vector]
-            comp_df = pd.DataFrame([
-                df_vs_t[k][df_vs_t[i]['dest'] == comp_name].groupby(
-                    'source')['q_out_W'].sum().to_dict()
-                for k in range(len(df_vs_t))
-            ], index=time_vector)
+        for j, component in enumerate(node.components):
+            comp_df = sim_results.get_component_df(component)
 
             ax = axes_comp.flatten()[comp_id]
             comp_id += 1
@@ -169,17 +132,25 @@ def plot_nodes_and_components(
             # ax.legend()
             ax.set_xlabel('Time [s]')
             ax.set_ylabel('Q_out [W]')
-            ax.set_title(f'Node: {node.name} - Component: {comp_name}')
+            ax.set_title(f'Node: {node.name} - Component: {component.name}')
 
         match_label_color(axes_comp, cmap=plt.cm.rainbow)
 
     match_label_color(axes, cmap=plt.cm.rainbow)
 
-    for ax in axes.flatten():
-        ax.legend()
+    ax = axes.flatten()[0]
+    xlim = ax.get_xlim()
+    ylim = ax.get_ylim()
+    ax.set_xlim(xlim[0], xlim[1] + 0.20 * (xlim[1] - xlim[0]))
+    ax.set_ylim(ylim[0], ylim[1] + 0.15 * (ylim[1] - ylim[0]))
+    ax.legend(loc='upper right', fontsize=8)
 
-    for ax in axes_comp.flatten():
-        ax.legend()
+    ax = axes_comp.flatten()[0]
+    xlim = ax.get_xlim()
+    ylim = ax.get_ylim()
+    ax.set_xlim(xlim[0], xlim[1] + 0.20 * (xlim[1] - xlim[0]))
+    ax.set_ylim(ylim[0], ylim[1] + 0.15 * (ylim[1] - ylim[0]))
+    ax.legend(loc='upper right', fontsize=8)
 
     if show:
         plt.show()
@@ -194,7 +165,7 @@ def plot_nodes_and_components(
 
 
 def generate_plots(
-    system,
+    sim_results,
     time_vector: np.ndarray,
     y_vectors: list[np.ndarray],
     y_names: list[str],
@@ -202,7 +173,8 @@ def generate_plots(
     output_dir: str,
 ):
 
-    filename = os.path.join(output_dir, f'fig_temperatures.png') if output_dir else None
+    filename = os.path.join(
+        output_dir, f'fig_temperatures.png') if output_dir else None
     generate_plot_temperatures(
         time_vector=time_vector,
         y_vectors=y_vectors,
@@ -213,8 +185,7 @@ def generate_plots(
 
     base_filename = os.path.join(output_dir, 'fig_')
     plot_nodes_and_components(
-        nodes=system.nodes,
-        time_vector=time_vector,
+        sim_results=sim_results,
         show=False,
         base_filename=base_filename,
     )
@@ -223,26 +194,24 @@ def generate_plots(
         plt.show()
 
 
-
 def export_data(
-    system,
-    time_vector: np.ndarray,
-    y_vectors: list[np.ndarray],
+    sim_results: SimResults,
     output_dir: str,
 ):
-    import pandas as pd
-    filename_temp_csv = os.path.join(output_dir, 'temperatures.csv')
-    pd.DataFrame({system.nodes[i].name: y_vectors[i] for i in range(len(system.nodes))}, index=time_vector).to_csv(filename_temp_csv)
 
-    for node in system.nodes:
-        filename = os.path.join(output_dir, f'node_{node.name}_q_out.csv')
-        df = get_node_q_out_df(node, time_vector)
-        print(f'df {node.name}=\n-----\n{df}\n-----\n')
-        df.to_csv(filename, header=True, index=True)
-        print(f'Exported file: {filename}')
+    filename_temp_csv = os.path.join(output_dir, 'temperatures.csv')
+    sim_results.get_temperature_df().to_csv(filename_temp_csv)
+    print(f'Exported file: {filename_temp_csv}')
+
+    nodes_df = sim_results.get_nodes_dfs()
+    for i, node in enumerate(sim_results.system.nodes):
+        filename_node = os.path.join(output_dir, f'node_{node.name}_q_out.csv')
+        nodes_df[i].to_csv(filename_node, header=True, index=True)
+        print(f'Exported file: {filename_node}')
 
         for component in node.components:
-            filename = os.path.join(output_dir, f'comp_{component.name}_q_out.csv')
-            df = get_component_q_out_df(component, time_vector)
-            df.to_csv(filename, header=True, index=True)
-            print(f'Exported file: {filename}')
+            filename_component = os.path.join(
+                output_dir, f'comp_{component.name}_q_out.csv')
+            sim_results.get_component_df(component).to_csv(
+                filename_component, header=True, index=True)
+            print(f'Exported file: {filename_component}')
