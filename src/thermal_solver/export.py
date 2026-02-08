@@ -1,9 +1,11 @@
-from .results import SimResults
 import math
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+
+from .results import SimResults
+
 matplotlib.use('qtagg')
 
 
