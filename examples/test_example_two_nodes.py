@@ -24,50 +24,61 @@ class SimpleSystemTwoNodes(ThermalSystem):
     ):
         super().__init__()
 
-        node_radiator = Node(
-            properties=NodeProperties(
-                mass_kg=10,
-                specific_heat_J_per_kg_per_K=444,
-            )
-        )
-        node_solar_panels = Node(
-            properties=NodeProperties(
-                mass_kg=20,
-                specific_heat_J_per_kg_per_K=444,
-            )
+        # === Nodes properties ===
+        node_radiator_properties = NodeProperties(
+            mass_kg=10,
+            specific_heat_J_per_kg_per_K=444,
         )
 
-        # Create Sun
+        node_solar_panels_properties = NodeProperties(
+            mass_kg=20,
+            specific_heat_J_per_kg_per_K=444,
+        )
+
+        # === Components properties ===
+        radiator_prop = RadiationSurfaceProperties(
+            area_m2=1,
+            orientation=[1, 0, 0],  # +x
+            emissivity=0.8,
+            solar_absorptivity=0.2,  # white paint
+        )
+        solar_panel_xm_prop = RadiationSurfaceProperties(
+            area_m2=1,
+            orientation=[-1, 0, 0],  # -x
+            emissivity=0.9,
+            solar_absorptivity=0.9,
+        )
+        solar_panel_yp_prop = RadiationSurfaceProperties(
+            area_m2=1,
+            orientation=[0, 1, 0],  # +y
+            emissivity=0.9,
+            solar_absorptivity=0.9,
+        )
+
+        # === Create Nodes ===
+        node_radiator = Node(properties=node_radiator_properties)
+        node_solar_panels = Node(properties=node_solar_panels_properties)
+
+        # === Create Components ===
+        radiator = RadiationSurface(properties=radiator_prop, name='radiator')
+        solar_panel_xm = RadiationSurface(properties=solar_panel_xm_prop, name='panel_xm')
+        solar_panel_yp = RadiationSurface(properties=solar_panel_yp_prop, name='panel_yp')
+
+        # === Create Sun ===
         sun = Sun(sun_vector_getter=lambda t: versor([-1, -1, 0]))
 
-        radiator = RadiationSurface(
-            properties=RadiationSurfaceProperties(
-                area_m2=1,
-                orientation=[1, 0, 0],  # +x
-                emissivity=0.8,
-                solar_absorptivity=0.2,  # white paint
-            ),
-            name='radiator'
-        )
-        solar_panel_xm = RadiationSurface(
-            properties=RadiationSurfaceProperties(
-                area_m2=1,
-                orientation=[-1, 0, 0],  # -x
-                emissivity=0.9,
-                solar_absorptivity=0.9,
-            ),
-            name='panel_xm'
-        )
-        solar_panel_yp = RadiationSurface(
-            properties=RadiationSurfaceProperties(
-                area_m2=1,
-                orientation=[0, 1, 0],  # +y
-                emissivity=0.9,
-                solar_absorptivity=0.9,
-            ),
-            name='panel_yp'
-        )
+        # === Assign Components to Nodes ===
+        node_radiator.add_component(radiator)
+        node_solar_panels.add_component(solar_panel_xm)
+        node_solar_panels.add_component(solar_panel_yp)
 
+        # === Assign Nodes to Thermal System ===
+        self.add_node(node=node_radiator)
+        self.add_node(node=node_solar_panels)
+
+        # === Connect Interfaces ===
+
+        # Connect radiator to {solar_panel_xm, solar_panel_yp, sun}
         radiator.add_input_interface(
             source=solar_panel_xm,
             properties=RadiationInterfaceProperties(
@@ -87,12 +98,7 @@ class SimpleSystemTwoNodes(ThermalSystem):
             ),
         )
 
-        # solar_panel_xm.add_input_interface(
-        #     source=radiator,
-        #     properties=RadiationInterfaceProperties(
-        #         view_factor=1.0,
-        #     ),
-        # )  # symmetic interface added automatically
+        # Connect solar_panel_xm to {solar_panel_yp, sun} (radiator connected above, symmetry is infered)
         solar_panel_xm.add_input_interface(
             source=solar_panel_yp,
             properties=RadiationInterfaceProperties(
@@ -106,18 +112,7 @@ class SimpleSystemTwoNodes(ThermalSystem):
             ),
         )
 
-        # solar_panel_yp.add_input_interface(
-        #     source=radiator,
-        #     properties=RadiationInterfaceProperties(
-        #         view_factor=1.0,
-        #     ),
-        # )  # symmetic interface added automatically
-        # solar_panel_yp.add_input_interface(
-        #     source=solar_panel_xm,
-        #     properties=RadiationInterfaceProperties(
-        #         view_factor=1.0,
-        #     ),
-        # )  # symmetic interface added automatically
+        # Connect solar_panel_yp to {sun} (radiator and solar_panel_xm connected above, symmetry is infered)
         solar_panel_yp.add_input_interface(
             source=sun,
             properties=RadiationInterfaceProperties(
