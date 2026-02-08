@@ -5,18 +5,11 @@ from .node import Node
 
 class ThermalSystem(abc.ABC):
 
-    def __init__(self, log_heat_fluxes: bool = False):
+    def __init__(self):
         self.nodes: list[Node] = []
-        self.log_heat_fluxes = log_heat_fluxes
-        self._log = []
 
     def add_node(self, node: Node):
         self.nodes.append(node)
-
-    def log(self, t: float, nodes: list[Node]):
-        self._log.append((
-            t, *[node.xxx() for node in nodes]
-        ))
 
     def __call__(self, t, y, *args) -> list[float]:
         """Return the list of dT/dt of the nodes, to be used in
