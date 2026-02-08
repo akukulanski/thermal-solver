@@ -1,3 +1,4 @@
+from thermal_solver.components import Component
 from thermal_solver.node import Node
 import math
 import matplotlib
@@ -76,12 +77,49 @@ def generate_plot_temperatures(
     return fig
 
 
+def get_node_q_out_df(node: Node, time_vector) -> pd.DataFrame:
+    raise NotImplementedError(f"WARNING: wrong implementation. Temperature not updated!")
+    return pd.DataFrame([
+        pd.DataFrame(node.get_heat_fluxes_W(t)).groupby(
+            'dest')['q_out_W'].sum().to_dict()
+        for t in time_vector
+    ], index=time_vector)
+
+
+def get_node_components_q_out_df(node: Node, time_vector) -> dict:
+    raise NotImplementedError(f"WARNING: wrong implementation. Temperature not updated!")
+    dfs = {}
+    for j, comp_name in enumerate(pd.DataFrame(node.get_heat_fluxes_W(t=0))['dest'].unique()):
+        df_vs_t = [pd.DataFrame(node.get_heat_fluxes_W(t))
+                    for t in time_vector]
+        comp_df = pd.DataFrame([
+            df_vs_t[k][df_vs_t[i]['dest'] == comp_name].groupby(
+                'source')['q_out_W'].sum().to_dict()
+            for k in range(len(df_vs_t))
+        ], index=time_vector)
+        dfs[comp_name] = comp_df
+    return dfs
+
+
+
+def get_component_q_out_df(component: Component, time_vector) -> pd.DataFrame:
+    raise NotImplementedError(f"WARNING: wrong implementation. Temperature not updated!")
+    df_vs_t = [pd.DataFrame(component.get_heat_fluxes_W(t)) for t in time_vector]
+    comp_df = pd.DataFrame([
+        df_vs_t[k].groupby('source')['q_out_W'].sum().to_dict()
+        for k in range(len(df_vs_t))
+    ], index=time_vector)
+    return comp_df
+
+
 def plot_nodes_and_components(
     nodes: list[Node],
     time_vector: np.ndarray,
     show: bool,
     base_filename: str | None,
 ):
+    print(f"WARNING: wrong implementation. Temperature not updated!")
+    return
     n_nodes = len(nodes)
     n_cols = 2
     n_rows = int(math.ceil(n_nodes / n_cols))
@@ -99,15 +137,11 @@ def plot_nodes_and_components(
     comp_id = 0
 
     for i, node in enumerate(nodes):
-        node_q_out = pd.DataFrame([
-            pd.DataFrame(node.get_heat_fluxes_W(t)).groupby(
-                'dest')['q_out_W'].sum().to_dict()
-            for t in time_vector
-        ], index=time_vector)
+        node_q_out_df = get_node_q_out_df(node, time_vector)
 
         ax = axes.flatten()[i]
-        node_q_out.plot(ax=ax)
-        node_q_out.sum(axis=1).plot(
+        node_q_out_df.plot(ax=ax)
+        node_q_out_df.sum(axis=1).plot(
             ax=ax, style='--', label='Total', dashes=[3, 3], lw=3, alpha=0.5
         )
         ax.grid(True)
@@ -165,17 +199,19 @@ def generate_plots(
     y_vectors: list[np.ndarray],
     y_names: list[str],
     show: bool,
-    base_filename: str,
+    output_dir: str,
 ):
 
+    filename = os.path.join(output_dir, f'fig_temperatures.png') if output_dir else None
     generate_plot_temperatures(
         time_vector=time_vector,
         y_vectors=y_vectors,
         y_names=y_names,
         show=False,
-        filename=f'{base_filename}.png' if base_filename else None,
+        filename=filename,
     )
 
+    base_filename = os.path.join(output_dir, 'fig_')
     plot_nodes_and_components(
         nodes=system.nodes,
         time_vector=time_vector,
@@ -185,3 +221,28 @@ def generate_plots(
 
     if show:
         plt.show()
+
+
+
+def export_data(
+    system,
+    time_vector: np.ndarray,
+    y_vectors: list[np.ndarray],
+    output_dir: str,
+):
+    import pandas as pd
+    filename_temp_csv = os.path.join(output_dir, 'temperatures.csv')
+    pd.DataFrame({system.nodes[i].name: y_vectors[i] for i in range(len(system.nodes))}, index=time_vector).to_csv(filename_temp_csv)
+
+    for node in system.nodes:
+        filename = os.path.join(output_dir, f'node_{node.name}_q_out.csv')
+        df = get_node_q_out_df(node, time_vector)
+        print(f'df {node.name}=\n-----\n{df}\n-----\n')
+        df.to_csv(filename, header=True, index=True)
+        print(f'Exported file: {filename}')
+
+        for component in node.components:
+            filename = os.path.join(output_dir, f'comp_{component.name}_q_out.csv')
+            df = get_component_q_out_df(component, time_vector)
+            df.to_csv(filename, header=True, index=True)
+            print(f'Exported file: {filename}')

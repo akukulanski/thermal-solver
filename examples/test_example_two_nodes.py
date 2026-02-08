@@ -125,23 +125,17 @@ class SimpleSystemTwoNodes(ThermalSystem):
             ),
         )
 
-        node_radiator.add_component(radiator)
-        node_solar_panels.add_component(solar_panel_xm)
-        node_solar_panels.add_component(solar_panel_yp)
-
-        self.add_node(node=node_radiator)
-        self.add_node(node=node_solar_panels)
-
 
 def run(
     show_fig: bool = False,
-    fig_filename: str = None,
+    output_dir: str = 'output',
 ):
     import matplotlib
-    import matplotlib.pyplot as plt
     import numpy as np
     from scipy.integrate import solve_ivp
     matplotlib.use('qtagg')
+
+    from thermal_solver.plot import generate_plots, export_data
 
     system = SimpleSystemTwoNodes()
 
@@ -153,8 +147,14 @@ def run(
     args = ()
 
     # Solve the IVP
-    sol = solve_ivp(fun=system, t_span=t_span, y0=y0,
-                    args=args, dense_output=True)
+    sol = solve_ivp(
+        fun=system,
+        t_span=t_span,
+        y0=y0,
+        method='RK45',
+        args=args,
+        dense_output=True
+    )
 
     # Access the solution
     print("Times:", sol.t)
@@ -164,28 +164,38 @@ def run(
     t_eval = np.linspace(*t_span, 100)
     y_interp = sol.sol(t_eval)
 
-    from thermal_solver.plot import generate_plots
+    if output_dir:
+        os.makedirs(output_dir, exist_ok=True)
+
     generate_plots(
         system=system,
         time_vector=t_eval,
         y_vectors=y_interp,
-        y_names=['T1', 'T2'],
+        y_names=[f'T_{n.name}' for n in system.nodes],
         show=show_fig,
-        base_filename=fig_filename,
+        output_dir=output_dir,
     )
+    print(f'output_dir={output_dir}')
+    if output_dir:
+        export_data(
+            system=system,
+            time_vector=t_eval,
+            y_vectors=y_interp,
+            output_dir=output_dir,
+        )
 
 
 def main(sys_args=None):
-    default_filename = os.path.join(os.path.dirname(__file__), 'output/test_example_two_nodes.png')
+    default_output_dir = os.path.join(os.path.dirname(__file__), 'output/test_example_two_nodes')
     parser = argparse.ArgumentParser()
-    parser.add_argument('-o', '--output', type=str, default=default_filename,
-                        help='Output filename')
+    parser.add_argument('-o', '--output-dir', type=str, default=default_output_dir,
+                        help='Output directory')
     parser.add_argument('--show', action='store_true', help='Show image')
     args = parser.parse_args(sys_args)
-    args.output = os.path.abspath(args.output)
+    args.output_dir = os.path.abspath(args.output_dir)
     run(
         show_fig=args.show,
-        fig_filename=args.output,
+        output_dir=args.output_dir,
     )
 
 
