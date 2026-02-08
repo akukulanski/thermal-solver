@@ -36,7 +36,7 @@ def test_radiation_surface():
         name='abc',
     )
     node = mock.MagicMock()
-    node.temperature = 300
+    node.temperature_K = 300
     node.components = [surface]
     surface._assign_node(node)
 
@@ -55,7 +55,7 @@ def test_radiation_surface():
     assert surface.calculate_emmited_heat_power_W(
         t=0) == pytest.approx(expected_heat_power_out_W)
     assert surface.calculate_received_heat_power_W(t=0) == 0
-    assert surface.calculate_neat_heat_power_out_W(
+    assert surface.get_neat_q_out_W(
         t=0) == pytest.approx(expected_heat_power_out_W)
 
     # Not opposing faces, dot product forced to 0.
@@ -104,9 +104,9 @@ def test_radiation_surface():
     other_surface_1._assign_node(nodes[0])
     other_surface_2._assign_node(nodes[1])
     other_surface_3._assign_node(nodes[2])
-    other_surface_1.node.temperature = 400
-    other_surface_2.node.temperature = 500
-    other_surface_3.node.temperature = 1000
+    other_surface_1.node.temperature_K = 400
+    other_surface_2.node.temperature_K = 500
+    other_surface_3.node.temperature_K = 1000
     surface.add_input_interface(
         source=other_surface_1,
         properties=RadiationInterfaceProperties(view_factor=0.9),
@@ -167,8 +167,9 @@ def test_radiation_surface():
     )
     assert surface.calculate_received_heat_power_W(
         t=0) == pytest.approx(expected_heat_power_in_W)
-    assert surface.calculate_neat_heat_power_out_W(t=0) == pytest.approx(
+    assert surface.get_neat_q_out_W(t=0) == pytest.approx(
         expected_heat_power_out_W - expected_heat_power_in_W)
+    assert surface.get_neat_q_out_W(t=0)
 
 
 def test_heat_source():
@@ -177,21 +178,21 @@ def test_heat_source():
         name='src_a'
     )
     assert source.name == 'src_a'
-    assert source.calculate_neat_heat_power_out_W(t=0) == 0
+    assert source.get_neat_q_out_W(t=0) == 0
     source = HeatSource(
         properties=HeatSourceProperties(constant_power_W=3),
         name='src_b'
     )
     assert source.name == 'src_b'
-    assert source.calculate_neat_heat_power_out_W(
+    assert source.get_neat_q_out_W(
         t=0) == -3  # heat source, power out is negative
     source = HeatSource(
         properties=HeatSourceProperties(power_getter=lambda t: 2 * t),
         name='src_c'
     )
     assert source.name == 'src_c'
-    assert source.calculate_neat_heat_power_out_W(t=0) == 0
-    assert source.calculate_neat_heat_power_out_W(
+    assert source.get_neat_q_out_W(t=0) == 0
+    assert source.get_neat_q_out_W(
         t=3) == -6  # heat source, power out is negative
 
 
@@ -224,23 +225,23 @@ def test_conduction_component():
 
     # Test node assignment and power calculation
     node_1 = mock.MagicMock()
-    node_1.temperature = 300
+    node_1.temperature_K = 300
     node_1.components = [component_1]
     component_1._assign_node(node_1)
     node_2 = mock.MagicMock()
-    node_2.temperature = 400
+    node_2.temperature_K = 400
     node_2.components = [component_2, component_3]
     component_2._assign_node(node_2)
     component_3._assign_node(node_2)
 
-    assert component_1.calculate_neat_heat_power_out_W(t=0) == pytest.approx(
+    assert component_1.get_neat_q_out_W(t=0) == pytest.approx(
         (300 - 400) * 10  # Out to component_2
         + (300 - 400) * 20  # Out to component_3
     )
-    assert component_2.calculate_neat_heat_power_out_W(t=0) == pytest.approx(
+    assert component_2.get_neat_q_out_W(t=0) == pytest.approx(
         (400 - 300) * 10  # Out to component_1
     )
-    assert component_3.calculate_neat_heat_power_out_W(
+    assert component_3.get_neat_q_out_W(
         t=0) == 0  # No input interfaces
 
 

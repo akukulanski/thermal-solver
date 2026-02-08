@@ -21,7 +21,7 @@ class Node:
         # as argument. Find a way to allow temperature set for nodes that
         # change according to the ODE, and for infinite-mass nodes that
         # remain independent and where temperature depends strictly on time.
-        self.temperature: float = None
+        self.temperature_K: float | None = None
         self.name = NameGenerator.register_or_create(
             name, prefix=self._name_prefix)
 
@@ -30,21 +30,21 @@ class Node:
         self.components.append(component)
         component._assign_node(self)
 
-    def get_heat_fluxes_W(self, t) -> list[HeatFluxElement]:
+    def get_heat_fluxes_W(self, t: float) -> list[HeatFluxElement]:
         return [
             heat_flux_element
             for component in self.components
             for heat_flux_element in component.get_heat_fluxes_W(t=t)
         ]
 
-    def calculate_neat_heat_power_out_W(self, t: float) -> float:
-        return sum([
-            component.calculate_neat_heat_power_out_W(t=t)
+    def get_neat_q_out_W(self, t: float) -> float:
+        return sum(
+            component.get_neat_q_out_W(t=t)
             for component in self.components
-        ])
+        )
 
     def set_temperature_K(self, temperature_K: float):
-        self.temperature = temperature_K
+        self.temperature_K = temperature_K
 
     def equation_dT_dt(self, t: float) -> float:
         """Thermal equation:
@@ -59,5 +59,5 @@ class Node:
         """
         return (
             - (1 / self.properties.thermal_capacity_J_per_K)
-            * self.calculate_neat_heat_power_out_W(t=t)
+            * self.get_neat_q_out_W(t=t)
         )

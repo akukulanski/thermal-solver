@@ -112,21 +112,21 @@ def test_node():
     other_node.add_component(component_2)
 
     # Set the node temperature
-    node.temperature = 350
+    node.temperature_K = 350
 
     # Don't check numbers as they are checked in unit tests of each class, but check consistency
     for t in range(0, 24, 3):
-        assert node.calculate_neat_heat_power_out_W(t=t) == pytest.approx(
-            surface_1.calculate_neat_heat_power_out_W(t=t)
-            + surface_2.calculate_neat_heat_power_out_W(t=t)
-            + heat_source_1.calculate_neat_heat_power_out_W(t=t)
-            + component_1.calculate_neat_heat_power_out_W(t=t)
+        assert node.get_neat_q_out_W(t=t) == pytest.approx(
+            surface_1.get_neat_q_out_W(t=t)
+            + surface_2.get_neat_q_out_W(t=t)
+            + heat_source_1.get_neat_q_out_W(t=t)
+            + component_1.get_neat_q_out_W(t=t)
         )
-        assert surface_1.calculate_neat_heat_power_out_W(t=t) == pytest.approx(
+        assert surface_1.get_neat_q_out_W(t=t) == pytest.approx(
             surface_1.calculate_emmited_heat_power_W(t=t)
             - surface_1.calculate_received_heat_power_W(t=t)
         )
-        assert surface_2.calculate_neat_heat_power_out_W(t=t) == pytest.approx(
+        assert surface_2.get_neat_q_out_W(t=t) == pytest.approx(
             surface_2.calculate_emmited_heat_power_W(t=t)
             - surface_2.calculate_received_heat_power_W(t=t)
         )

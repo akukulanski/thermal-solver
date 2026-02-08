@@ -118,6 +118,6 @@ def test_sun():
 
 def test_fixed_temperature_node():
     node = FixedTemperatureNode(temperature_K=300)
-    assert node.temperature == 300
-    node.temperature = 350
-    assert node.temperature == 300
+    assert node.temperature_K == 300
+    node.temperature_K = 350
+    assert node.temperature_K == 300

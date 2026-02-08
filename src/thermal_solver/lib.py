@@ -74,7 +74,7 @@ class Sun(RadiationSurface):
         raise NotImplementedError(
             f'Method {_get_func_name_()} not implemented for Sun!')
 
-    def calculate_neat_heat_power_out_W(self, *args, **kwargs):
+    def get_neat_q_out_W(self, *args, **kwargs):
         raise NotImplementedError(
             f'Method {_get_func_name_()} not implemented for Sun!')
 
@@ -107,15 +107,15 @@ class FixedTemperatureNode(Node):
             mass_kg=np.inf,
             specific_heat_J_per_kg_per_K=np.inf,
         ))
-        self._temperature = temperature_K
+        self._temperature_K = temperature_K
 
     @property
-    def temperature(self):
+    def temperature_K(self):
         """Replace the attribute with a property that returns the fixed value
-        regardless of any use of obj.temperature = ..."""
-        return self._temperature
+        regardless of any use of obj.temperature_K = ..."""
+        return self._temperature_K
 
-    @temperature.setter
-    def temperature(self, value: float):
+    @temperature_K.setter
+    def temperature_K(self, value: float):
         """The setter exists to avoid errors in Node.__init__(), but it's ignored"""
         pass

@@ -62,8 +62,10 @@ class Component(abc.ABC):
         )
         self.node = node
 
-    def calculate_neat_heat_power_out_W(self, t: float) -> float:
-        return sum(x.q_out_W for x in self.get_heat_fluxes_W(t=t))
+    @abc.abstractmethod
+    def get_neat_q_out_W(self, t: float) -> float:
+        # return sum(x.q_out_W for x in self.get_heat_fluxes_W(t=t))
+        raise NotImplementedError()
 
     @abc.abstractmethod
     def get_heat_fluxes_W(self, t: float) -> list[HeatFluxElement]:
@@ -109,19 +111,23 @@ class RadiationSurface(Component):
             source.add_input_interface(
                 self, symmetric_interface_properties, add_symmetric_interface=False)
 
+    def get_iface_q_out(self, t: float, source: RadiationSurface, properties: RadiationInterfaceProperties) -> float:
+        return (-1) * source.calculate_heat_transfered_W(
+            t=t,
+            area_exposed_m2=self.properties.area_m2 * properties.view_factor,
+            orientation=self.properties.orientation,
+            absorptivity=self.properties.get_absorptivity(
+                spectrum=source.properties.emission_spectrum
+            )
+        )
+
     def get_input_heat_fluxes(self, t) -> list[HeatFluxElement]:
         return [
             HeatFluxElement(
                 dest=self.name,
                 source=source.name,
                 iface_properties=iface_properties,
-                q_out_W=(-1) * source.calculate_heat_transfered_W(
-                    t=t,
-                    area_exposed_m2=self.properties.area_m2 * iface_properties.view_factor,
-                    orientation=self.properties.orientation,
-                    absorptivity=self.properties.get_absorptivity(
-                        spectrum=source.properties.emission_spectrum),
-                ),
+                q_out_W=self.get_iface_q_out(t, source, iface_properties),
             )
             for source, iface_properties in self.input_interfaces
         ]
@@ -138,6 +144,12 @@ class RadiationSurface(Component):
         ]
         return q_in_W + q_out_W
 
+    def get_neat_q_out_W(self, t: float) -> float:
+        return self.calculate_emmited_heat_power_W(t=t) + sum(
+            self.get_iface_q_out(t, source, iface_properties)
+            for source, iface_properties in self.input_interfaces
+        )
+
     def calculate_heat_transfered_W(
         self,
         t: float,
@@ -152,7 +164,7 @@ class RadiationSurface(Component):
             STEFAN_BOLTZMANN_W_PER_M2_PER_K4
             * area_exposed_m2 * effective_area_factor
             * self.properties.emissivity * absorptivity
-            * self.node.temperature ** 4
+            * self.node.temperature_K ** 4
         )
 
     def calculate_emmited_heat_power_W(self, t: float) -> float:
@@ -162,7 +174,7 @@ class RadiationSurface(Component):
             STEFAN_BOLTZMANN_W_PER_M2_PER_K4
             * self.properties.emissivity
             * self.properties.area_m2
-            * self.node.temperature ** 4
+            * self.node.temperature_K ** 4
         )
 
     def calculate_received_heat_power_W(self, t: float) -> float:
@@ -197,6 +209,9 @@ class HeatSource(Component):
             )
         ]
 
+    def get_neat_q_out_W(self, t: float) -> float:
+        return -self.properties.power_getter(t=t)
+
 
 class ConductionComponent(Component):
 
@@ -229,18 +244,25 @@ class ConductionComponent(Component):
                 self, symmetric_interface_properties, add_symmetric_interface=False
             )
 
+    def get_iface_q_out_W(self, source: ConductionComponent, properties: ConductionInterfaceProperties) -> float:
+        return (self.node.temperature_K - source.node.temperature_K) * properties.conductance_W_per_K
+
     def get_heat_fluxes_W(self, t: float) -> list[HeatFluxElement]:
-        this_node_temp_K = self.node.temperature
         return [
             HeatFluxElement(
                 dest=self.name,
                 source=source.name,
-                iface_properties=iface,
-                q_out_W=(this_node_temp_K - source.node.temperature) *
-                iface.conductance_W_per_K,
+                iface_properties=properties,
+                q_out_W=self.get_iface_q_out_W(source, properties),
             )
-            for source, iface in self.input_interfaces
+            for source, properties in self.input_interfaces
         ]
+
+    def get_neat_q_out_W(self, t: float) -> float:
+        return sum(
+            self.get_iface_q_out_W(source, properties)
+            for source, properties in self.input_interfaces
+        )
 
 
 class _NullComponent(Component):
@@ -250,6 +272,9 @@ class _NullComponent(Component):
 
     def get_heat_fluxes_W(self, t: float) -> list[HeatFluxElement]:
         return []
+
+    def get_neat_q_out_W(self, t: float) -> float:
+        return 0.0
 
 
 _null_component = _NullComponent()
