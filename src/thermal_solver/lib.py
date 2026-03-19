@@ -10,7 +10,7 @@ from .components import (
 )
 from .node import Node
 from .utils import (
-    _get_func_name_,
+    get_func_name,
 )
 from .properties import (
     Spectrum,
@@ -64,7 +64,7 @@ class Sun(RadiationSurface):
 
     def _assign_node(self, *args, **kwargs):
         raise NotImplementedError(
-            f'Method {_get_func_name_()} not implemented for Sun!')
+            f'Method {get_func_name()} not implemented for Sun!')
 
     def add_input_interface(self, *args, **kwargs):
         """Input interfaces for the Sun are ignored"""
@@ -72,15 +72,15 @@ class Sun(RadiationSurface):
 
     def calculate_heat_power_out_W(self, *args, **kwargs):
         raise NotImplementedError(
-            f'Method {_get_func_name_()} not implemented for Sun!')
+            f'Method {get_func_name()} not implemented for Sun!')
 
     def get_neat_q_out_W(self, *args, **kwargs):
         raise NotImplementedError(
-            f'Method {_get_func_name_()} not implemented for Sun!')
+            f'Method {get_func_name()} not implemented for Sun!')
 
     def get_heat_fluxes_W(self, t) -> list[dict]:
         raise NotImplementedError(
-            f'Method {_get_func_name_()} not implemented for Sun!')
+            f'Method {get_func_name()} not implemented for Sun!')
 
 
 # class InfinteMassNode(Node):

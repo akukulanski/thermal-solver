@@ -1,9 +1,11 @@
-import numpy as np
 
-from .vectors import versor
+__all__ = [
+    'get_func_name',
+    'NameGenerator',
+]
 
 
-def _get_func_name_():
+def get_func_name():
     import inspect
     return inspect.currentframe().f_back.f_code.co_name
 
@@ -30,7 +32,7 @@ class NameGenerator:
     @classmethod
     def register_name(cls, name: str):
         if not name:
-            raise ValueError(f'Name cannot be empty.')
+            raise ValueError('Name cannot be empty.')
         if not name[0].isalpha():
             raise ValueError(
                 f'The first character of the name should be a letter. Not "{name[0]}"')

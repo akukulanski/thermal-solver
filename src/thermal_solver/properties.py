@@ -2,11 +2,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field, asdict
 from enum import Enum, auto
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from .components import Component
-    from .node import Node
 
 
 __all__ = [
@@ -68,10 +63,10 @@ class HeatSourceProperties:
     def __post_init__(self):
         if self.constant_power_W is None and self.power_getter is None:
             raise TypeError(
-                f'Either constant_power_W or power_getter should be defined')
+                'Either constant_power_W or power_getter should be defined')
         elif self.constant_power_W is not None and self.power_getter is not None:
             raise TypeError(
-                f'Only one of constant_power_W or power_getter should be defined')
+                'Only one of constant_power_W or power_getter should be defined')
         elif self.constant_power_W is not None:
             self.power_getter = lambda t: self.constant_power_W
 

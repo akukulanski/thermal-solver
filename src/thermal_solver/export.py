@@ -176,7 +176,7 @@ def generate_plots(
 ):
 
     filename = os.path.join(
-        output_dir, f'fig_temperatures.png') if output_dir else None
+        output_dir, 'fig_temperatures.png') if output_dir else None
     generate_plot_temperatures(
         time_vector=time_vector,
         y_vectors=y_vectors,

@@ -16,7 +16,7 @@ from .properties import (
     ConductionInterfaceProperties,
 )
 from .utils import (
-    _get_func_name_,
+    get_func_name,
     NameGenerator,
 )
 from .vectors import versor
@@ -56,7 +56,7 @@ class Component(abc.ABC):
     def _assign_node(self, node: Node):
         assert self.node is None, f'Component already assigned to node ({self.node})'
         assert self in node.components, (
-            f'Incorrect use of internal method {self.__class__.__name__}.{_get_func_name_()}(): '
+            f'Incorrect use of internal method {self.__class__.__name__}.{get_func_name()}(): '
             f'Trying to assign node to component, but component not in Node.\n'
             f'Use Node.add_component() instead.'
         )
@@ -101,7 +101,7 @@ class RadiationSurface(Component):
         # from THIS radiation surface (self.properties.area_m2), and NOT source.properties.area_m2.
         # The exposed area is then self.properties.area_m2 * properties.view_factor
         if self._source_in_interfaces(source):
-            raise ValueError(f'Source already added')
+            raise ValueError('Source already added')
         self.input_interfaces.append((source, properties))
         if add_symmetric_interface:
             symmetric_interface_properties = properties.get_symmetric_properties(
@@ -236,7 +236,7 @@ class ConductionComponent(Component):
                             add_symmetric_interface: bool = True):
         """Add input interface"""
         if self._source_in_interfaces(source):
-            raise ValueError(f'Source already added')
+            raise ValueError('Source already added')
         self.input_interfaces.append((source, properties))
         if add_symmetric_interface:
             symmetric_interface_properties = properties.get_symmetric_properties()
