@@ -184,7 +184,7 @@ class RadiationSurface(Component):
     def calculate_effective_area_factor(
         cls, orientation_a: np.ndarray | list, orientation_b: np.ndarray | list
     ) -> float:
-        """Return the dot procut between the two versors of the orientation of the
+        """Return the dot product between the two versors of the orientation of the
         surfaces, inverted in sign (opposing for positive factor), and at least 0"""
         v1, v2 = versor(np.array(orientation_a)), versor(
             np.array(orientation_b))
