@@ -1,28 +1,15 @@
 import numpy as np
 
-from .constants import STEFAN_BOLTZMANN_W_PER_M2_PER_K4
+from .constants import STEFAN_BOLTZMANN_W_PER_M2_PER_K4, DEEP_SPACE_TEMP_K
 
 
 def solve_radiosity(
     surfaces: list,
     temperatures_K: np.ndarray | list,
     view_factor_matrix: np.ndarray | list[list],
+    include_losses_to_deep_space: bool = False,
 ) -> tuple:
     """
-    STEFAN_BOLTZMANN_W_PER_M2_PER_K4 = 5.670374419e-8  # [W / (m2 * K4)]
-
-    class Surface:
-        def __init__(self, area_m2, emmissivity):
-            self.area_m2 = area_m2
-            self.emmissivity = emmissivity
-
-    surfaces = [Surface(10, 0.8), Surface(15, 0.9), Surface(1, 0.5)]
-    temperatures_K = [40, 60, 80]
-    view_factor_matrix = [
-        [0.0, 1.0, 0.0],
-        [1.0 * 10 / 15, 0.0, 0.0],
-        [0.0, 0.0, 0.0],
-    ]
 
     Args:
         surfaces: List of surfaces, each containing area_m2 and emmisivity
@@ -34,6 +21,8 @@ def solve_radiosity(
             ...
         ]
         view_factor_matrix[i, j] is the fraction leaving i that arrives at j
+        Note that the final view_factor_matrix will be (N+1)x(N+1), as the escaped
+        radiation will be added ensuring that sum(F_i->*) = 1.
 
     """
 
@@ -41,7 +30,7 @@ def solve_radiosity(
     # Areas
     areas_m2 = np.array([s.area_m2 for s in surfaces], dtype=float)
     # Emissivities
-    emmissivities = np.array([s.emmissivity for s in surfaces], dtype=float)
+    emissivities = np.array([s.emissivity for s in surfaces], dtype=float)
     # Temperatures in K
     temperatures_K = np.array(temperatures_K, dtype=float)
     # NxN view-factor matrix
@@ -67,16 +56,51 @@ def solve_radiosity(
             f"{area_eff}"
         )
 
+    # Complete the matrix with radiation to deep space to ensure the sum of view factors is 1.
+    row_sums = view_factor_matrix.sum(axis=1)
+    if np.any(row_sums > 1 + 1e-10):
+        raise ValueError("View factor rows cannot exceed 1")
+
+    if include_losses_to_deep_space:
+        # Calculate expansion elements
+        F_space = 1.0 - row_sums
+        F_space = np.clip(F_space, 0.0, 1.0)  # Clip potential rounding errors
+
+        # dummy_area = 6 # OK
+
+        # Create the expanded matrix
+        N = len(areas_m2)
+        F_ext = np.zeros((N + 1, N + 1), dtype=float)
+        F_ext[:N, :N] = view_factor_matrix
+        F_ext[:N, N] = F_space
+        # F_ext[N, N] = 1.0  # Space sees nothing back -> NO.
+        # F_ext[N, :N] = areas_m2 / dummy_area * F_space # OK!
+        aux = areas_m2 * F_space
+        dummy_area = np.sum(aux)
+        F_ext[N, :N] = aux / dummy_area
+        assert np.isclose(sum(F_ext[N, :N]), 1), f"{sum(F_ext[N, :N])}"
+
+        # Update the original vectors/matrixes with the expanded versions
+        areas_m2 = np.append(areas_m2, dummy_area)  # dummy
+        emissivities = np.append(emissivities, 1.0)
+        temperatures_K = np.append(temperatures_K, DEEP_SPACE_TEMP_K)
+        view_factor_matrix = F_ext
+
     print(f"\n=== Inputs ===")
     print(f"areas_m2={areas_m2}\n")
-    print(f"emmissivities={emmissivities}\n")
+    print(f"emissivities={emissivities}\n")
     print(f"temperatures_K={temperatures_K}\n")
     print(f"view_factor_matrix=\n{view_factor_matrix}\n")
 
     # M . J = b
-    M = np.eye(len(areas_m2)) - np.diag(1 -
-                                        emmissivities) @ view_factor_matrix.T
-    b = emmissivities * STEFAN_BOLTZMANN_W_PER_M2_PER_K4 * temperatures_K**4
+    M = np.eye(len(areas_m2)) - np.dot(
+        # np.diag(1 - emissivities), view_factor_matrix.T
+        np.diag(1 - emissivities), view_factor_matrix
+    )
+    b = emissivities * STEFAN_BOLTZMANN_W_PER_M2_PER_K4 * temperatures_K**4
+
+    if np.linalg.cond(M) > 1e12:
+        raise ValueError("Radiosity matrix is ill-conditioned")
 
     print(f"\n=== System of Equations ===")
     print(f"M=\n{M}\n")
@@ -85,13 +109,18 @@ def solve_radiosity(
     # Radiosity in [W/m2]
     J = np.linalg.solve(M, b)  # or scipy.linalg.solve(...)
     # Incomming radiation [W/m2]
-    G = view_factor_matrix.T @ J
+    # G = view_factor_matrix.T @ J
+    G = np.dot(view_factor_matrix, J)
     # Neat heat out
     Q = areas_m2 * (J - G)
 
     print(f"\n=== Solutions ===")
-    print(f"J={J}\n")
-    print(f"G={G}\n")
-    print(f"Q={Q}\n")
+    print(f"J={J}")
+    print(f"G={G}")
+    print(f"Q={Q}")
+
+    # Sanity check
+    if include_losses_to_deep_space and np.abs(Q.sum()) > 1e-6:
+        raise ValueError(f"Warning: Energy not conserved (Q={Q}; Q.sum() = {Q.sum()})")
 
     return J, G, Q
